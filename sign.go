@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"hash"
 	"net/url"
 	"sort"
@@ -41,6 +42,9 @@ func (c *Client) sign(host string, values url.Values) string {
 
 	if plain[len(plain)-1] == `&` {
 		plain = plain[:len(plain)-1]
+	}
+	if c.Debug {
+		fmt.Println("String to sign:", strings.Join(plain, ``))
 	}
 
 	var h hash.Hash

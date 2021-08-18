@@ -106,6 +106,10 @@ func (c *Client) call(values url.Values) (msg *MsgResponse, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("read response body: %w", err)
 	}
+	if c.Debug {
+		fmt.Println("Status:", resp.StatusCode)
+		fmt.Println("Response:", string(data))
+	}
 	msg = &MsgResponse{}
 	err = json.Unmarshal(data, msg)
 	if err != nil {
