@@ -11,9 +11,9 @@ import (
 //  input: queue string
 //  input: message string
 //  input: delaySeconds int
-//  return: *ResponseSM
+//  return: ResponseSM
 //  return: error
-func (c *Client) SendMessage(queue, message string, delaySeconds int) (*ResponseSM, error) {
+func (c *Client) SendMessage(queue, message string, delaySeconds int) (ResponseSM, error) {
 	switch {
 	case queue == `` || len(queue) > 64:
 		return nil, fmt.Errorf("%w queue name(0<len<65): %s", ErrInvalidParameter, queue)
@@ -28,18 +28,7 @@ func (c *Client) SendMessage(queue, message string, delaySeconds int) (*Response
 	values.Set(`queueName`, queue)
 	values.Set(`msgBody`, message)
 	values.Set(`delaySeconds`, strconv.Itoa(delaySeconds))
-	msg, err := c.call(values)
-	if err != nil {
-		return nil, fmt.Errorf("client call: %w", err)
-	}
-	resp := &ResponseSM{
-		Code:      msg.Code,
-		Message:   msg.Message,
-		RequestId: msg.RequestId,
-		ClientId:  msg.ClientId,
-		MsgId:     msg.MsgId,
-	}
-	return resp, nil
+	return c.call(values)
 }
 
 // BatchSendMessage
@@ -47,9 +36,9 @@ func (c *Client) SendMessage(queue, message string, delaySeconds int) (*Response
 //  input: queue string
 //  input: messages []string
 //  input: delaySeconds int
-//  return: *ResponseSMs
+//  return: ResponseSMs
 //  return: error
-func (c *Client) BatchSendMessage(queue string, messages []string, delaySeconds int) (*ResponseSMs, error) {
+func (c *Client) BatchSendMessage(queue string, messages []string, delaySeconds int) (ResponseSMs, error) {
 	switch {
 	case queue == `` || len(queue) > 64:
 		return nil, fmt.Errorf("%w queue name(0<len<65): %s", ErrInvalidParameter, queue)
@@ -72,27 +61,16 @@ func (c *Client) BatchSendMessage(queue string, messages []string, delaySeconds 
 	for i, m := range messages {
 		values.Set(`msgBody.`+strconv.Itoa(i), m)
 	}
-	msg, err := c.call(values)
-	if err != nil {
-		return nil, err
-	}
-	resp := &ResponseSMs{
-		Code:      msg.Code,
-		Message:   msg.Message,
-		RequestId: msg.RequestId,
-		ClientId:  msg.ClientId,
-		MsgIDs:    msg.MsgIDs,
-	}
-	return resp, nil
+	return c.call(values)
 }
 
 // ReceiveMessage
 //  API: https://cloud.tencent.com/document/product/406/5839
 //  input: queue string
 //  input: pollingWaitSeconds int
-//  return: *ResponseRM
+//  return: ResponseRM
 //  return: error
-func (c *Client) ReceiveMessage(queue string, pollingWaitSeconds int) (*ResponseRM, error) {
+func (c *Client) ReceiveMessage(queue string, pollingWaitSeconds int) (ResponseRM, error) {
 	switch {
 	case queue == `` || len(queue) > 64:
 		return nil, fmt.Errorf("%w queue name(0<len<65): %s", ErrInvalidParameter, queue)
@@ -104,24 +82,7 @@ func (c *Client) ReceiveMessage(queue string, pollingWaitSeconds int) (*Response
 	values.Set(`Action`, actionRecvMsg)
 	values.Set(`queueName`, queue)
 	values.Set(`pollingWaitSeconds`, strconv.Itoa(pollingWaitSeconds))
-	msg, err := c.call(values)
-	if err != nil {
-		return nil, fmt.Errorf("client call: %w", err)
-	}
-	resp := &ResponseRM{
-		Code:             msg.Code,
-		Message:          msg.Message,
-		RequestId:        msg.RequestId,
-		ClientId:         msg.ClientId,
-		MsgId:            msg.MsgId,
-		MsgBody:          msg.MsgBody,
-		Handle:           msg.Handle,
-		EnqueueTime:      msg.EnqueueTime,
-		FirstDequeueTime: msg.FirstDequeueTime,
-		NextVisibleTime:  msg.NextVisibleTime,
-		DequeueCount:     msg.DequeueCount,
-	}
-	return resp, nil
+	return c.call(values)
 }
 
 // BatchReceiveMessage
@@ -131,13 +92,13 @@ func (c *Client) ReceiveMessage(queue string, pollingWaitSeconds int) (*Response
 //  input: numOfMsg int
 //  return: *ResponseRMs
 //  return: error
-func (c *Client) BatchReceiveMessage(queue string, pollingWaitSeconds, numOfMsg int) (*ResponseRMs, error) {
+func (c *Client) BatchReceiveMessage(queue string, pollingWaitSeconds, numOfMsg int) (ResponseRMs, error) {
 	switch {
 	case queue == `` || len(queue) > 64:
 		return nil, fmt.Errorf("%w queue name(0<len<65): %s", ErrInvalidParameter, queue)
 	case pollingWaitSeconds < 0 || pollingWaitSeconds > 30:
 		return nil, fmt.Errorf("%w polling wait seconds[0~30]: %d", ErrInvalidParameter, pollingWaitSeconds)
-	case numOfMsg < 0 || numOfMsg > 16:
+	case numOfMsg < 1 || numOfMsg > 16:
 		return nil, fmt.Errorf("%w number of message[1~16]: %d", ErrInvalidParameter, pollingWaitSeconds)
 	}
 
@@ -146,27 +107,16 @@ func (c *Client) BatchReceiveMessage(queue string, pollingWaitSeconds, numOfMsg 
 	values.Set(`queueName`, queue)
 	values.Set(`pollingWaitSeconds`, strconv.Itoa(pollingWaitSeconds))
 	values.Set(`numOfMsg`, strconv.Itoa(numOfMsg))
-	msg, err := c.call(values)
-	if err != nil {
-		return nil, err
-	}
-	resp := &ResponseRMs{
-		Code:      msg.Code,
-		Message:   msg.Message,
-		RequestId: msg.RequestId,
-		ClientId:  msg.ClientId,
-		MsgInfos:  msg.MsgInfos,
-	}
-	return resp, nil
+	return c.call(values)
 }
 
 // DeleteMessage
 //  API: https://cloud.tencent.com/document/product/406/5840
 //  input: queue string
 //  input: receiptHandle string
-//  return: *ResponseDM
+//  return: ResponseDM
 //  return: error
-func (c *Client) DeleteMessage(queue, receiptHandle string) (*ResponseDM, error) {
+func (c *Client) DeleteMessage(queue, receiptHandle string) (ResponseDM, error) {
 	switch {
 	case queue == `` || len(queue) > 64:
 		return nil, fmt.Errorf("%w queue name(0<len<65): %s", ErrInvalidParameter, queue)
@@ -178,26 +128,16 @@ func (c *Client) DeleteMessage(queue, receiptHandle string) (*ResponseDM, error)
 	values.Set(`Action`, actionDelMsg)
 	values.Set(`queueName`, queue)
 	values.Set(`receiptHandle`, receiptHandle)
-	msg, err := c.call(values)
-	if err != nil {
-		return nil, fmt.Errorf("client call: %w", err)
-	}
-	resp := &ResponseDM{
-		Code:      msg.Code,
-		Message:   msg.Message,
-		RequestId: msg.RequestId,
-		ClientId:  msg.ClientId,
-	}
-	return resp, nil
+	return c.call(values)
 }
 
 // BatchDeleteMessage
 //  API: https://cloud.tencent.com/document/product/406/5841
 //  input: queue string
 //  input: receiptHandles []string
-//  return: *ResponseDMs
+//  return: ResponseDMs
 //  return: error
-func (c *Client) BatchDeleteMessage(queue string, receiptHandles []string) (*ResponseDMs, error) {
+func (c *Client) BatchDeleteMessage(queue string, receiptHandles []string) (ResponseDMs, error) {
 	switch {
 	case queue == `` || len(queue) > 64:
 		return nil, fmt.Errorf("%w queue name(0<len<65): %s", ErrInvalidParameter, queue)
@@ -217,16 +157,5 @@ func (c *Client) BatchDeleteMessage(queue string, receiptHandles []string) (*Res
 	for i, h := range receiptHandles {
 		values.Set(`receiptHandle.`+strconv.Itoa(i), h)
 	}
-	msg, err := c.call(values)
-	if err != nil {
-		return nil, err
-	}
-	resp := &ResponseDMs{
-		Code:      msg.Code,
-		Message:   msg.Message,
-		RequestId: msg.RequestId,
-		ClientId:  msg.ClientId,
-		Errors:    msg.Errors,
-	}
-	return resp, nil
+	return c.call(values)
 }

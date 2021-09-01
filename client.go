@@ -53,7 +53,7 @@ func NewClient(uri, secretId, secretKey string) *Client {
 	}
 }
 
-func (c *Client) call(values url.Values) (msg *MsgResponse, err error) {
+func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
 	var u *url.URL
 	u, err = url.Parse(c.Uri)
 	if err != nil {
@@ -106,14 +106,17 @@ func (c *Client) call(values url.Values) (msg *MsgResponse, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("read response body: %w", err)
 	}
+	raw := string(data)
 	if c.Debug {
 		fmt.Println("Status:", resp.StatusCode)
-		fmt.Println("Response:", string(data))
+		fmt.Println("Response:", raw)
 	}
-	msg = &MsgResponse{}
+	msg = &msgResponse{
+		Raw: raw,
+	}
 	err = json.Unmarshal(data, msg)
 	if err != nil {
-		return nil, fmt.Errorf("json decode: %w, response: %s", err, string(data))
+		return nil, fmt.Errorf("json decode: %w, response: %s", err, raw)
 	}
 	return msg, nil
 }

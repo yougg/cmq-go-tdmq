@@ -13,9 +13,9 @@ import (
 //  input: message string
 //  input: routingKey string
 //  input: tags []string
-//  return: *ResponseSM
+//  return: ResponseSM
 //  return: error
-func (c *Client) PublishMessage(topic, message, routingKey string, tags []string) (*ResponseSM, error) {
+func (c *Client) PublishMessage(topic, message, routingKey string, tags []string) (ResponseSM, error) {
 	switch {
 	case topic == `` || len(topic) > 64:
 		return nil, fmt.Errorf("%w topic name(0<len<65): %s", ErrInvalidParameter, topic)
@@ -24,14 +24,14 @@ func (c *Client) PublishMessage(topic, message, routingKey string, tags []string
 	case len(routingKey) > 64:
 		return nil, fmt.Errorf("%w routing key(0<=len<65): %s", ErrInvalidParameter, routingKey)
 	case len(tags) > 5:
-		return nil, fmt.Errorf("%w message tags count(0~64): %v", ErrInvalidParameter, tags)
+		return nil, fmt.Errorf("%w message tags count[0~5]: %v", ErrInvalidParameter, tags)
 	default:
 		if strings.Count(routingKey, `.`) > 15 {
 			return nil, fmt.Errorf("%w more than 15 dot(.) in routing key: %s", ErrInvalidParameter, routingKey)
 		}
 		for _, v := range tags {
 			if v == `` || len(v) > 16 {
-				return nil, fmt.Errorf("%w message tag(0<len<65): %s", ErrInvalidParameter, v)
+				return nil, fmt.Errorf("%w message tag(0<len<17): %s", ErrInvalidParameter, v)
 			}
 		}
 	}
@@ -44,18 +44,7 @@ func (c *Client) PublishMessage(topic, message, routingKey string, tags []string
 	for i, t := range tags {
 		values.Set(`msgTag.`+strconv.Itoa(i), t)
 	}
-	msg, err := c.call(values)
-	if err != nil {
-		return nil, fmt.Errorf("client call: %w", err)
-	}
-	resp := &ResponseSM{
-		Code:      msg.Code,
-		Message:   msg.Message,
-		RequestId: msg.RequestId,
-		ClientId:  msg.ClientId,
-		MsgId:     msg.MsgId,
-	}
-	return resp, nil
+	return c.call(values)
 }
 
 // BatchPublishMessage
@@ -64,18 +53,18 @@ func (c *Client) PublishMessage(topic, message, routingKey string, tags []string
 //  input: routingKey string
 //  input: messages []string
 //  input: tags []string
-//  return: *ResponseSMs
+//  return: ResponseSMs
 //  return: error
-func (c *Client) BatchPublishMessage(topic, routingKey string, messages, tags []string) (*ResponseSMs, error) {
+func (c *Client) BatchPublishMessage(topic, routingKey string, messages, tags []string) (ResponseSMs, error) {
 	switch {
 	case topic == `` || len(topic) > 64:
 		return nil, fmt.Errorf("%w topic name(0<len<65): %s", ErrInvalidParameter, topic)
 	case len(messages) == 0 || len(messages) > 16:
-		return nil, fmt.Errorf("%w message count(0~16): %d", ErrInvalidParameter, len(messages))
+		return nil, fmt.Errorf("%w messages count(0~16]: %d", ErrInvalidParameter, len(messages))
 	case len(routingKey) > 64:
 		return nil, fmt.Errorf("%w routing key(0<=len<65): %s", ErrInvalidParameter, routingKey)
 	case len(tags) > 5:
-		return nil, fmt.Errorf("%w message tags count(0~5): %v", ErrInvalidParameter, tags)
+		return nil, fmt.Errorf("%w message tags count[0~5]: %v", ErrInvalidParameter, tags)
 	default:
 		if strings.Count(routingKey, `.`) > 15 {
 			return nil, fmt.Errorf("%w more than 15 dot(.) in routing key: %s", ErrInvalidParameter, routingKey)
@@ -102,16 +91,5 @@ func (c *Client) BatchPublishMessage(topic, routingKey string, messages, tags []
 	for i, t := range tags {
 		values.Set(`msgTag.`+strconv.Itoa(i), t)
 	}
-	msg, err := c.call(values)
-	if err != nil {
-		return nil, err
-	}
-	resp := &ResponseSMs{
-		Code:      msg.Code,
-		Message:   msg.Message,
-		RequestId: msg.RequestId,
-		ClientId:  msg.ClientId,
-		MsgIDs:    msg.MsgIDs,
-	}
-	return resp, nil
+	return c.call(values)
 }

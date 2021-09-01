@@ -9,7 +9,7 @@ import (
 //  input: queue string
 //  return: *ResponseRoute
 //  return: error
-func (c *Client) QueryQueueRoute(queue string) (*ResponseRoute, error) {
+func (c *Client) QueryQueueRoute(queue string) (Route, error) {
 	return c.query(actionQueueRoute, queue)
 }
 
@@ -17,7 +17,7 @@ func (c *Client) QueryQueueRoute(queue string) (*ResponseRoute, error) {
 //  input: topic string
 //  return: *ResponseRoute
 //  return: error
-func (c *Client) QueryTopicRoute(topic string) (*ResponseRoute, error) {
+func (c *Client) QueryTopicRoute(topic string) (Route, error) {
 	return c.query(actionTopicRoute, topic)
 }
 
@@ -26,7 +26,7 @@ func (c *Client) QueryTopicRoute(topic string) (*ResponseRoute, error) {
 //  input: name string
 //  return: *ResponseRoute
 //  return: error
-func (c *Client) query(action, name string) (*ResponseRoute, error) {
+func (c *Client) query(action, name string) (Route, error) {
 	if name == `` || len(name) > 64 {
 		return nil, fmt.Errorf("%w %s name(0<len<65): %s", ErrInvalidParameter, action, name)
 	}
@@ -38,16 +38,5 @@ func (c *Client) query(action, name string) (*ResponseRoute, error) {
 	} else {
 		values.Set(`topicName`, name)
 	}
-	msg, err := c.call(values)
-	if err != nil {
-		return nil, fmt.Errorf("client call: %w", err)
-	}
-	resp := &ResponseRoute{
-		Code:      msg.Code,
-		Message:   msg.Message,
-		RequestId: msg.RequestId,
-		ClientId:  msg.ClientId,
-		Addr:      msg.Addr,
-	}
-	return resp, nil
+	return c.call(values)
 }
