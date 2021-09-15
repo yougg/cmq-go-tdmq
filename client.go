@@ -32,7 +32,7 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func NewClient(uri, secretId, secretKey string) *Client {
+func NewClient(uri, secretId, secretKey string, t time.Duration) *Client {
 	return &Client{
 		Id:         uint64(rand.Uint32()),
 		Uri:        uri,
@@ -49,6 +49,7 @@ func NewClient(uri, secretId, secretKey string) *Client {
 					InsecureSkipVerify: true,
 				},
 			},
+			Timeout: t,
 		},
 	}
 }
