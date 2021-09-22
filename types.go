@@ -7,6 +7,7 @@ import (
 
 type (
 	Result interface {
+		StatusCode() int   // HTTP Response status code
 		Code() int         // 0：表示成功，others：错误
 		Message() string   // 错误提示信息
 		RequestId() string // 服务器生成的请求ID
@@ -78,6 +79,7 @@ type (
 
 type (
 	msgResponse struct {
+		Status            int       `json:"-"`                          // HTTP Response status code
 		Code_             int       `json:"code"`                       // 0：表示成功，others：错误
 		Message_          string    `json:"Message"`                    // 错误提示信息
 		RequestId_        string    `json:"requestId"`                  // 服务器生成的请求ID
@@ -117,6 +119,7 @@ type (
 	}
 )
 
+func (m *msgResponse) StatusCode() int         { return m.Status }
 func (m *msgResponse) Code() int               { return m.Code_ }
 func (m *msgResponse) Message() string         { return m.Message_ }
 func (m *msgResponse) RequestId() string       { return m.RequestId_ }

@@ -113,7 +113,8 @@ func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
 		fmt.Println("Response:", raw)
 	}
 	msg = &msgResponse{
-		Raw: raw,
+		Status: resp.StatusCode,
+		Raw:    raw,
 	}
 	err = json.Unmarshal(data, msg)
 	if err != nil {

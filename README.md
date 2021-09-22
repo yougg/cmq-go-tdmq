@@ -16,12 +16,11 @@ Only support these data flow actions:
     - PublishMessage
     - BatchPublishMessage
 
+Example:
 
 ```shell
 go get github.com/yougg/cmq-go-tdmq
 ```
-
-Example:
 
 ```go
 package main
@@ -35,7 +34,7 @@ import (
 
 func main() {
     client := tdmq.NewClient("http://cmq.to.tdmq:12345","AKIDxxxxxxxxxx","ABCDEFGHIJKLMN",5*time.Second)
-    //client.AppId = 12345 // for privatization without authentication
+    //client.AppId = 12345  // for privatization without authentication
 	//client.Method = `GET` // default: POST
 	client.Debug = true
 
@@ -44,6 +43,7 @@ func main() {
         fmt.Println("send message:", err)
         return
     }
+    fmt.Println("Status:", resp0.StatusCode())
     fmt.Println("Response:", resp0)
   
     msg, err := client.ReceiveMessage(`queue0`, 5)
