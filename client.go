@@ -75,7 +75,11 @@ func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
 		values.Set(`Signature`, c.sign(u.Host, values))
 	}
 
-	query := values.Encode()
+	var query string
+	query, err = url.QueryUnescape(values.Encode())
+	if err != nil {
+		return nil, fmt.Errorf("unescape data: %w", err)
+	}
 	var reader io.Reader
 	switch c.Method {
 	case http.MethodGet:
