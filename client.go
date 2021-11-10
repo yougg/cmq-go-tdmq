@@ -75,16 +75,27 @@ func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
 		values.Set(`Signature`, c.sign(u.Host, values))
 	}
 
+	// https://cloud.tencent.com/document/product/406/5906
 	var query string
-	query, err = url.QueryUnescape(values.Encode())
-	if err != nil {
-		return nil, fmt.Errorf("unescape data: %w", err)
-	}
 	var reader io.Reader
 	switch c.Method {
 	case http.MethodGet:
+		// 请求方法是GET，对所有请求参数值做URL编码
+		query = values.Encode()
 		u.RawQuery = query
 	case http.MethodPost:
+		var plain []string
+		for k, v := range values {
+			if k == `Signature` && len(v) > 0 {
+				// 请求方法是POST，只对签名串进行URL编码
+				v[0] = url.QueryEscape(strings.Join(v, ``))
+			}
+			plain = append(plain, k, `=`, strings.Join(v, ``), `&`)
+		}
+		if plain[len(plain)-1] == `&` {
+			plain = plain[:len(plain)-1]
+		}
+		query = strings.Join(plain, ``)
 		reader = strings.NewReader(query)
 	default:
 		return nil, errors.New("unsupported request method: " + c.Method)
@@ -97,7 +108,7 @@ func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
 	req.Header.Set(`Content-Type`, `application/x-www-form-urlencoded`)
 	var resp *http.Response
 	if c.Debug {
-		fmt.Printf("curl -i -X %s '%s'", c.Method, u.String())
+		fmt.Printf("curl -i -X %s -H 'Content-Type:application/x-www-form-urlencoded' '%s'", c.Method, u.String())
 		if c.Method == http.MethodPost {
 			fmt.Printf(" -d '%s'", query)
 		}
