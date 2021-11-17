@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 // SendMessage
@@ -82,6 +83,11 @@ func (c *Client) ReceiveMessage(queue string, pollingWaitSeconds int) (ResponseR
 	values.Set(`Action`, actionRecvMsg)
 	values.Set(`queueName`, queue)
 	values.Set(`pollingWaitSeconds`, strconv.Itoa(pollingWaitSeconds))
+
+	t := time.Duration(pollingWaitSeconds) * time.Second
+	if t > c.client.Timeout {
+		c.client.Timeout = t + time.Second
+	}
 	return c.call(values)
 }
 
@@ -107,6 +113,11 @@ func (c *Client) BatchReceiveMessage(queue string, pollingWaitSeconds, numOfMsg 
 	values.Set(`queueName`, queue)
 	values.Set(`pollingWaitSeconds`, strconv.Itoa(pollingWaitSeconds))
 	values.Set(`numOfMsg`, strconv.Itoa(numOfMsg))
+
+	t := time.Duration(pollingWaitSeconds) * time.Second
+	if t > c.client.Timeout {
+		c.client.Timeout = t + time.Second
+	}
 	return c.call(values)
 }
 
