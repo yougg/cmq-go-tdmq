@@ -15,9 +15,9 @@ import (
 )
 
 type Client struct {
-	Id         uint64 // clientRequestId
+	id         uint64 // clientRequestId
 	Uri        string // ex: http://gateway.tdmq.io
-	Path       string // "/", "/v2/index.php"
+	path       string // "/", "/v2/index.php"
 	Method     string // GET, POST
 	SignMethod string // HmacSHA1, HmacSHA256
 	SecretId   string // AKIDxxxxx
@@ -32,19 +32,30 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func NewClient(uri, secretId, secretKey string, t time.Duration) *Client {
+// NewClient create TDMQ CMQ client
+//  input: uri string request uri for TDMQ CMQ service
+//  input: secretId string user secret id from tencent cloud account
+//  input: secretKey string user secret key from tencent cloud account
+//  input: t time.Duration client request timeout
+//  input: keepalive bool client connection keep alive to server
+//  return: *Client
+func NewClient(uri, secretId, secretKey string, t time.Duration, keepalive ...bool) *Client {
+	var shortLive bool
+	if len(keepalive) > 0 {
+		shortLive = !keepalive[0]
+	}
 	return &Client{
-		Id:         uint64(rand.Uint32()),
+		id:         uint64(rand.Uint32()),
 		Uri:        uri,
-		Path:       `/`,
+		path:       `/`,
 		Method:     http.MethodPost,
-		SignMethod: HmacSHA256,
+		SignMethod: HmacSHA1,
 		SecretId:   secretId,
 		SecretKey:  secretKey,
 
 		client: &http.Client{
 			Transport: &http.Transport{
-				DisableKeepAlives: true,
+				DisableKeepAlives: shortLive,
 				TLSClientConfig: &tls.Config{
 					InsecureSkipVerify: true,
 				},
@@ -62,8 +73,8 @@ func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
 	}
 
 	values.Set(`RequestClient`, currentVersion)
-	if c.Id > 0 {
-		values.Set(`clientRequestId`, strconv.FormatUint(c.Id, 10))
+	if c.id > 0 {
+		values.Set(`clientRequestId`, strconv.FormatUint(c.id, 10))
 	}
 	if c.AppId > 0 && c.SecretId == `` && c.SecretKey == `` {
 		values.Set(`appId`, strconv.FormatUint(c.AppId, 10))

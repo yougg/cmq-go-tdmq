@@ -22,7 +22,7 @@ func (c *Client) sign(host string, values url.Values) string {
 	if len(host) > 0 {
 		plain = append(plain, host)
 	}
-	if path := c.Path; len(path) > 0 {
+	if path := c.path; len(path) > 0 {
 		idx := strings.Index(path, `?`)
 		if idx >= 0 {
 			path = path[:idx]
