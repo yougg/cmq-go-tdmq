@@ -97,8 +97,7 @@ func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
 	case http.MethodPost:
 		var plain []string
 		for k, v := range values {
-			if k == `Signature` && len(v) > 0 {
-				// 请求方法是POST，只对签名串进行URL编码
+			if len(v) > 0 {
 				v[0] = url.QueryEscape(strings.Join(v, ``))
 			}
 			plain = append(plain, k, `=`, strings.Join(v, ``), `&`)
