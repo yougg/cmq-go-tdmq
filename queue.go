@@ -16,7 +16,7 @@ import (
 //  return: error
 func (c *Client) SendMessage(queue, message string, delaySeconds int) (ResponseSM, error) {
 	switch {
-	case queue == `` || len(queue) > 64:
+	case !nameReg.MatchString(queue):
 		return nil, fmt.Errorf("%w queue name(0<len<65): %s", ErrInvalidParameter, queue)
 	case message == `` || len(message) > 1048576:
 		return nil, fmt.Errorf("%w message length(0<len<1048577): %d", ErrInvalidParameter, len(message))
@@ -41,7 +41,7 @@ func (c *Client) SendMessage(queue, message string, delaySeconds int) (ResponseS
 //  return: error
 func (c *Client) BatchSendMessage(queue string, messages []string, delaySeconds int) (ResponseSMs, error) {
 	switch {
-	case queue == `` || len(queue) > 64:
+	case !nameReg.MatchString(queue):
 		return nil, fmt.Errorf("%w queue name(0<len<65): %s", ErrInvalidParameter, queue)
 	case len(messages) == 0 || len(messages) > 16:
 		return nil, fmt.Errorf("%w message count(0<len<17): %d", ErrInvalidParameter, len(messages))
@@ -73,7 +73,7 @@ func (c *Client) BatchSendMessage(queue string, messages []string, delaySeconds 
 //  return: error
 func (c *Client) ReceiveMessage(queue string, pollingWaitSeconds int) (ResponseRM, error) {
 	switch {
-	case queue == `` || len(queue) > 64:
+	case !nameReg.MatchString(queue):
 		return nil, fmt.Errorf("%w queue name(0<len<65): %s", ErrInvalidParameter, queue)
 	case pollingWaitSeconds < 0 || pollingWaitSeconds > 30:
 		return nil, fmt.Errorf("%w polling wait seconds[0~30]: %d", ErrInvalidParameter, pollingWaitSeconds)
@@ -100,7 +100,7 @@ func (c *Client) ReceiveMessage(queue string, pollingWaitSeconds int) (ResponseR
 //  return: error
 func (c *Client) BatchReceiveMessage(queue string, pollingWaitSeconds, numOfMsg int) (ResponseRMs, error) {
 	switch {
-	case queue == `` || len(queue) > 64:
+	case !nameReg.MatchString(queue):
 		return nil, fmt.Errorf("%w queue name(0<len<65): %s", ErrInvalidParameter, queue)
 	case pollingWaitSeconds < 0 || pollingWaitSeconds > 30:
 		return nil, fmt.Errorf("%w polling wait seconds[0~30]: %d", ErrInvalidParameter, pollingWaitSeconds)
@@ -129,9 +129,9 @@ func (c *Client) BatchReceiveMessage(queue string, pollingWaitSeconds, numOfMsg 
 //  return: error
 func (c *Client) DeleteMessage(queue, receiptHandle string) (ResponseDM, error) {
 	switch {
-	case queue == `` || len(queue) > 64:
+	case !nameReg.MatchString(queue):
 		return nil, fmt.Errorf("%w queue name(0<len<65): %s", ErrInvalidParameter, queue)
-	case receiptHandle == `` || len(receiptHandle) > 80:
+	case !handleReg.MatchString(receiptHandle):
 		return nil, fmt.Errorf("%w receipt handle(0<len<81): %s", ErrInvalidParameter, receiptHandle)
 	}
 
@@ -150,13 +150,13 @@ func (c *Client) DeleteMessage(queue, receiptHandle string) (ResponseDM, error) 
 //  return: error
 func (c *Client) BatchDeleteMessage(queue string, receiptHandles []string) (ResponseDMs, error) {
 	switch {
-	case queue == `` || len(queue) > 64:
+	case !nameReg.MatchString(queue):
 		return nil, fmt.Errorf("%w queue name(0<len<65): %s", ErrInvalidParameter, queue)
 	case len(receiptHandles) == 0 || len(receiptHandles) > 16:
 		return nil, fmt.Errorf("%w receipt handle count[0~16]: %v", ErrInvalidParameter, receiptHandles)
 	default:
 		for _, h := range receiptHandles {
-			if h == `` || len(h) > 80 {
+			if !handleReg.MatchString(h) {
 				return nil, fmt.Errorf("%w receipt handle(0<len<81): %s", ErrInvalidParameter, h)
 			}
 		}

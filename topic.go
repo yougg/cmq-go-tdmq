@@ -17,7 +17,7 @@ import (
 //  return: error
 func (c *Client) PublishMessage(topic, message, routingKey string, tags []string) (ResponseSM, error) {
 	switch {
-	case topic == `` || len(topic) > 64:
+	case !nameReg.MatchString(topic):
 		return nil, fmt.Errorf("%w topic name(0<len<65): %s", ErrInvalidParameter, topic)
 	case message == `` || len(message) > 1048576:
 		return nil, fmt.Errorf("%w message length(0<len<1048576): %d", ErrInvalidParameter, len(message))
@@ -57,7 +57,7 @@ func (c *Client) PublishMessage(topic, message, routingKey string, tags []string
 //  return: error
 func (c *Client) BatchPublishMessage(topic, routingKey string, messages, tags []string) (ResponseSMs, error) {
 	switch {
-	case topic == `` || len(topic) > 64:
+	case !nameReg.MatchString(topic):
 		return nil, fmt.Errorf("%w topic name(0<len<65): %s", ErrInvalidParameter, topic)
 	case len(messages) == 0 || len(messages) > 16:
 		return nil, fmt.Errorf("%w messages count(0~16]: %d", ErrInvalidParameter, len(messages))
