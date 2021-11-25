@@ -71,6 +71,9 @@ func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse url: %w", err)
 	}
+	if len(u.Path) > 0 {
+		c.path = u.Path
+	}
 
 	values.Set(`RequestClient`, currentVersion)
 	if c.id > 0 {
