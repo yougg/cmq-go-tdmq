@@ -19,7 +19,7 @@ Only support these data flow actions:
 Example:
 
 ```shell
-go get github.com/yougg/cmq-go-tdmq
+go get -u github.com/yougg/cmq-go-tdmq@main
 ```
 
 ```go
@@ -33,9 +33,14 @@ import (
 )
 
 func main() {
-    client := tdmq.NewClient("http://cmq.to.tdmq:12345","AKIDxxxxxxxxxx","ABCDEFGHIJKLMN",5*time.Second)
-    //client.AppId = 12345  // for privatization without authentication
-	//client.Method = `GET` // default: POST
+	// get your own secretId/secretKey: https://console.cloud.tencent.com/cam/capi
+    client, err := tdmq.NewClient("https://cmq-gz.public.tencenttdmq.com","AKIDxxxxxxxxxx","xxxxxxxxxx",5*time.Second)
+    if err != nil {
+        fmt.Println("new TDMQ-CMQ client", err)
+        return
+    }
+    // client.AppId = 12345  // for privatization without authentication
+	// client.Method = `GET` // default: POST
 	client.Debug = true
 
     resp0, err := client.SendMessage(`queue0`, `message test 0`, 0)

@@ -85,8 +85,8 @@ func (c *Client) ReceiveMessage(queue string, pollingWaitSeconds int) (ResponseR
 	values.Set(`pollingWaitSeconds`, strconv.Itoa(pollingWaitSeconds))
 
 	t := time.Duration(pollingWaitSeconds) * time.Second
-	if t > c.client.Timeout {
-		c.client.Timeout = t + time.Second
+	if t > c.HttpClient.Timeout {
+		c.HttpClient.Timeout = t + time.Second
 	}
 	return c.call(values)
 }
@@ -115,8 +115,8 @@ func (c *Client) BatchReceiveMessage(queue string, pollingWaitSeconds, numOfMsg 
 	values.Set(`numOfMsg`, strconv.Itoa(numOfMsg))
 
 	t := time.Duration(pollingWaitSeconds) * time.Second
-	if t > c.client.Timeout {
-		c.client.Timeout = t + time.Second
+	if t > c.HttpClient.Timeout {
+		c.HttpClient.Timeout = t + time.Second
 	}
 	return c.call(values)
 }

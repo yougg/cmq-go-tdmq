@@ -7,6 +7,7 @@ import (
 )
 
 type (
+	// Result common result of request TDMQ-CMQ
 	Result interface {
 		StatusCode() int   // HTTP Response status code
 		Code() int         // 0：表示成功，others：错误
@@ -16,10 +17,12 @@ type (
 		fmt.Stringer
 	}
 
+	// Msg message ID
 	Msg interface {
 		MsgId() string // 消费的消息唯一标识 ID
 	}
 
+	// Message information of response message
 	Message interface {
 		Msg
 		MsgBody() string         // 消费的消息正文
@@ -30,6 +33,7 @@ type (
 		DequeueCount() int64     // 保留字段
 	}
 
+	// MsgError errors in response
 	MsgError interface {
 		Code() int       // 0：表示成功，others：错误
 		Message() string // 错误提示信息
@@ -166,7 +170,7 @@ func (m *msgErr) Message() string          { return m.Message_ }
 func (m *msgErr) Handle() string           { return m.Handle_ }
 
 const (
-	currentVersion = "SDK_GO_1.0.0"
+	currentVersion = "SDK_GO_1.2.0"
 
 	actionQueueRoute = "QueryQueueRoute"
 	actionTopicRoute = "QueryTopicRoute"

@@ -15,17 +15,16 @@ import (
 )
 
 type Client struct {
-	id         uint64 // clientRequestId
-	Uri        string // ex: http://gateway.tdmq.io
-	path       string // "/", "/v2/index.php"
-	Method     string // GET, POST
-	SignMethod string // HmacSHA1, HmacSHA256
-	SecretId   string // AKIDxxxxx
+	id         uint64   // clientRequestId
+	Url        *url.URL // ex: http://gateway.tdmq.io
+	Method     string   // GET, POST
+	SignMethod string   // HmacSHA1, HmacSHA256
+	SecretId   string   // AKIDxxxxx
 	SecretKey  string
 	AppId      uint64 // appId for privatization, need gateway server option enabled
 
-	Debug  bool // weather print request message
-	client *http.Client
+	Debug      bool // weather print request message
+	HttpClient *http.Client
 }
 
 func init() {
@@ -36,24 +35,22 @@ func init() {
 //  input: uri string request uri for TDMQ CMQ service
 //  input: secretId string user secret id from tencent cloud account
 //  input: secretKey string user secret key from tencent cloud account
-//  input: t time.Duration client request timeout
-//  input: keepalive bool client connection keep alive to server
+//  input: t time.Duration http client request timeout
+//  input: keepalive bool http client connection keep alive to server
 //  return: *Client
-func NewClient(uri, secretId, secretKey string, t time.Duration, keepalive ...bool) *Client {
+func NewClient(uri, secretId, secretKey string, t time.Duration, keepalive ...bool) (c *Client, err error) {
 	var shortLive bool
 	if len(keepalive) > 0 {
 		shortLive = !keepalive[0]
 	}
-	return &Client{
+	c = &Client{
 		id:         uint64(rand.Uint32()),
-		Uri:        uri,
-		path:       `/`,
 		Method:     http.MethodPost,
 		SignMethod: HmacSHA1,
 		SecretId:   secretId,
 		SecretKey:  secretKey,
 
-		client: &http.Client{
+		HttpClient: &http.Client{
 			Transport: &http.Transport{
 				DisableKeepAlives: shortLive,
 				TLSClientConfig: &tls.Config{
@@ -63,18 +60,18 @@ func NewClient(uri, secretId, secretKey string, t time.Duration, keepalive ...bo
 			Timeout: t,
 		},
 	}
-}
 
-func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
-	var u *url.URL
-	u, err = url.Parse(c.Uri)
+	c.Url, err = url.Parse(uri)
 	if err != nil {
 		return nil, fmt.Errorf("parse url: %w", err)
 	}
-	if len(u.Path) > 0 {
-		c.path = u.Path
+	if len(c.Url.Path) == 0 {
+		c.Url.Path = `/`
 	}
+	return
+}
 
+func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
 	values.Set(`RequestClient`, currentVersion)
 	if c.id > 0 {
 		values.Set(`clientRequestId`, strconv.FormatUint(c.id, 10))
@@ -86,18 +83,21 @@ func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
 		values.Set(`SignatureMethod`, c.SignMethod)
 		values.Set(`Nonce`, strconv.FormatUint(uint64(rand.Uint32()), 10))
 		values.Set(`Timestamp`, strconv.FormatInt(time.Now().Unix(), 10))
-		values.Set(`Signature`, c.sign(u.Host, values))
+		values.Set(`Signature`, c.sign(c.Url.Host, values))
 	}
 
 	// https://cloud.tencent.com/document/product/406/5906
 	var query string
 	var reader io.Reader
+	var u *url.URL
 	switch c.Method {
 	case http.MethodGet:
 		// 请求方法是GET，对所有请求参数值做URL编码
 		query = values.Encode()
+		u = &(*c.Url) // copy url
 		u.RawQuery = query
 	case http.MethodPost:
+		u = c.Url // reference url, avoid memory copy
 		var plain []string
 		for k, v := range values {
 			if len(v) > 0 {
@@ -127,7 +127,7 @@ func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
 		}
 		fmt.Println()
 	}
-	resp, err = c.client.Do(req)
+	resp, err = c.HttpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("http client do request: %w", err)
 	}
