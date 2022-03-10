@@ -114,10 +114,13 @@ func send() {
 		fmt.Println("no message to send, use -m to set message")
 		return
 	}
-	resp0, err := client.SendMessage(queue, msg, delay)
+	resp, err := client.SendMessage(queue, msg, delay)
 	if err != nil {
-		fmt.Printf("send message: %v, response: %v\n", err, resp0)
+		fmt.Println("send message:", err)
 		return
+	}
+	if !debug {
+		fmt.Println("Response:", resp)
 	}
 }
 
@@ -127,9 +130,11 @@ func receive() {
 		fmt.Println("receive message:", err)
 		return
 	}
-	fmt.Println("Response:", resp)
+	if !debug {
+		fmt.Println("Response:", resp)
+	}
 
-	if !ack {
+	if !ack || resp.Code() != 0 {
 		return
 	}
 	resp1, err := client.DeleteMessage(queue, resp.Handle())
@@ -137,7 +142,9 @@ func receive() {
 		fmt.Println("delete message:", err)
 		return
 	}
-	fmt.Println("Response:", resp1)
+	if !debug {
+		fmt.Println("Response:", resp1)
+	}
 }
 
 func remove() {
@@ -152,7 +159,9 @@ func remove() {
 		fmt.Println("delete message:", err)
 		return
 	}
-	fmt.Println("Response:", resp)
+	if !debug {
+		fmt.Println("Response:", resp)
+	}
 }
 
 func publish() {
@@ -167,7 +176,9 @@ func publish() {
 		fmt.Println("publish message:", err)
 		return
 	}
-	fmt.Println("Response:", resp)
+	if !debug {
+		fmt.Println("Response:", resp)
+	}
 }
 
 func sends() {
@@ -176,7 +187,9 @@ func sends() {
 		fmt.Println("batch send message:", err)
 		return
 	}
-	fmt.Println("Response:", resp)
+	if !debug {
+		fmt.Println("Response:", resp)
+	}
 }
 
 func receives() {
@@ -185,9 +198,11 @@ func receives() {
 		fmt.Println("batch receive message:", err)
 		return
 	}
-	fmt.Println("Response:", resp)
+	if !debug {
+		fmt.Println("Response:", resp)
+	}
 
-	if !ack {
+	if !ack || resp.Code() != 0 {
 		return
 	}
 	handles = nil
@@ -203,7 +218,9 @@ func receives() {
 			fmt.Println("batch delete message:", err)
 			return
 		}
-		fmt.Println("batch delete result:", res)
+		if !debug {
+			fmt.Println("batch delete result:", res)
+		}
 	}
 }
 
@@ -213,7 +230,9 @@ func removes() {
 		fmt.Println("delete messages:", err)
 		return
 	}
-	fmt.Println("Response:", resp)
+	if !debug {
+		fmt.Println("Response:", resp)
+	}
 }
 
 func publishes() {
@@ -222,5 +241,7 @@ func publishes() {
 		fmt.Println("publish message:", err)
 		return
 	}
-	fmt.Println("Response:", resp)
+	if !debug {
+		fmt.Println("Response:", resp)
+	}
 }
