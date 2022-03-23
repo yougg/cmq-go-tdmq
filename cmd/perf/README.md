@@ -55,15 +55,16 @@ GOOS=windows go generate perf.go
   MessageCount: 1      # 请求的消息数量：1条，每次Action请求消息数量，Batch批量Action请求为1~16条
   Action: SendMessage  # 请求消息的动作：QueryQueueRoute,SendMessage,BatchSendMessage,ReceiveMessage,BatchReceiveMessage,DeleteMessage,BatchDeleteMessage,QueryTopicRoute,PublishMessage,BatchPublishMessage
   DelaySeconds: 0      # 单位为秒，消息发送到队列后，延时多久用户才可见该消息。
-- Description: 执行10次 从1个队列接收1条消息
+- Description: 执行600秒 从1个队列接收1条消息
   CaseEnabled: true    # 是否启用本用例：true, false
-  RepeatTimes: 10      # 用例重复次数：1000次
+  RepeatTimes: 0       # 用例重复次数：1000次
   RepeatTimeout: 600   # 用例固定重复执行时间, 单位:秒, 非0时 RepeatTimes 配置无效
   Concurrent: 100      # 最大并发数量：100
   MaximumTPS: 0        # 最大限制TPS：0: 不限制，非0: 限制对应数量TPS
   ResourceType: queue  # 请求的资源类型：queue, topic
   ResourceName: test   # 请求的资源名称：队列／主题的全名或者前缀，关联下面资源数量(1条时使用全名，多条时使用前缀)
   Action: ReceiveMessage  # 请求消息的动作：QueryQueueRoute,SendMessage,BatchSendMessage,ReceiveMessage,BatchReceiveMessage,DeleteMessage,BatchDeleteMessage,QueryTopicRoute,PublishMessage,BatchPublishMessage
+  MessageCount: 1       # 请求的消息数量：1条，每次Action请求消息数量，Batch批量Action请求为1~16条
   AloneRecvTime: true   # 拉取消息是否分隔Ack进行独立计时
   AckEnabled: true      # 拉取到消息后是否向服务端Ack确认(删除)该条消息
   PollingWaitSeconds: 5 # 长轮询等待时间。取值范围0 - 30秒
@@ -72,10 +73,53 @@ GOOS=windows go generate perf.go
 复制编辑以上`yaml`内容到 https://www.json2yaml.com/ 进行转换`json`  
 复制转换后的`json`内容到本地保存为`cases.json`文件
 
+### 用例示例
+
+```json
+[
+  {
+    "Description": "并发100生产消息",
+    "CaseEnabled": true,
+    "RepeatTimes": 0,
+    "RepeatTimeout": 6000,
+    "Concurrent": 100,
+    "MaximumTPS": 0,
+    "ResourceType": "queue",
+    "ResourceName": "myqueue0",
+    "ResourceCount": 1,
+    "RandMsgSize": false,
+    "MessageSize": 10,
+    "MessageCount": 1,
+    "Action": "SendMessage"
+  }
+]
+```
+
+```json
+[
+  {
+    "Description": "并发50批量消费消息",
+    "CaseEnabled": true,
+    "RepeatTimes": 0,
+    "RepeatTimeout": 6000,
+    "Concurrent": 50,
+    "MaximumTPS": 0,
+    "ResourceType": "queue",
+    "ResourceName": "myqueue0",
+    "ResourceCount": 1,
+    "Action": "BatchReceiveMessage",
+    "MessageCount": 2,
+    "AloneRecvTime": true,
+    "AckEnabled": true,
+    "PollingWaitSeconds": 5
+  }
+]
+```
+
 ## 执行测试用例
 
 ```shell
 ./perf -h # 查看命令参数帮助
 
-./perf -u 'http://12.34.56.78:9990' -i 'AKIDxxxxx' -k 'abcdefghijk' -c cases.json
+./perf -e -keepalive -s 1 -u 'http://12.34.56.78:9990' -i 'AKIDxxxxx' -k 'abcdefghijk' -c cases.json
 ```
