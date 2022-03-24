@@ -73,7 +73,7 @@ func (l *list) Set(s string) error {
 	return nil
 }
 
-const twoMB = 2 * 1024 * 1024 // 2M
+const randMsgSize = 2 * 1024 * 1024 // 2M
 
 var (
 	addr string
@@ -138,8 +138,8 @@ func init() {
 	// generate random 2MB length string
 	// all visible ascii characters
 	// !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
-	m := make([]byte, twoMB)
-	for i := 0; i < twoMB; i++ {
+	m := make([]byte, randMsgSize)
+	for i := 0; i < randMsgSize; i++ {
 		m[i] = byte('!' + rand.Intn('~'-'!'))
 	}
 	randMsg = string(m)
@@ -187,8 +187,21 @@ func main() {
 			log.Println("Skip Case:", c.Description)
 			continue
 		}
-		if (c.RepeatTimes < 0 && c.RepeatTimeout < 0) || c.ResourceCount < 1 {
-			log.Printf("invalid case repeat times: %d, repeat timeout: %ds, resource count: %d\n", c.RepeatTimes, c.RepeatTimeout, c.ResourceCount)
+		switch {
+		case c.RepeatTimes < 0 && c.RepeatTimeout < 0:
+			log.Printf("invalid case repeat times: %d, repeat timeout: %ds\n", c.RepeatTimes, c.RepeatTimeout)
+			continue
+		case c.Concurrent < 1:
+			log.Printf("invalid case concurrent: %d\n", c.Concurrent)
+			continue
+		case c.ResourceCount < 1:
+			log.Printf("invalid case resource count: %d\n", c.ResourceCount)
+			continue
+		case c.MessageSize < 0:
+			log.Printf("invalid case message size: %d\n", c.MessageSize)
+			continue
+		case c.MessageCount < 0:
+			log.Printf("invalid case message count: %d\n", c.MessageCount)
 			continue
 		}
 		switch c.Action {
@@ -329,7 +342,7 @@ func test(c *Case) {
 	for range ch {
 		wg.Add(c.ResourceCount)
 		for j := 0; j < c.ResourceCount; j++ {
-			s.Join(func(cc *Case) pool.Task {
+			job := func(cc *Case) pool.Task {
 				return func(args ...any) {
 					var succeed bool
 					defer func() {
@@ -371,7 +384,7 @@ func test(c *Case) {
 					case "QueryQueueRoute":
 						resp, err = client.QueryQueueRoute(name)
 					case "SendMessage":
-						head := rand.Intn(twoMB - cc.MessageSize)
+						head := rand.Intn(randMsgSize - cc.MessageSize)
 						var tail int
 						if c.RandMsgSize {
 							// 指定范围内的随机消息体积
@@ -387,7 +400,7 @@ func test(c *Case) {
 					case "BatchSendMessage":
 						var msgs []string
 						for x := 0; x < cc.MessageCount; x++ {
-							head := rand.Intn(twoMB - cc.MessageSize)
+							head := rand.Intn(randMsgSize - cc.MessageSize)
 							var tail int
 							if c.RandMsgSize {
 								tail = head + rand.Intn(cc.MessageSize)
@@ -446,7 +459,7 @@ func test(c *Case) {
 					case "QueryTopicRoute":
 						resp, err = client.QueryTopicRoute(name)
 					case "PublishMessage":
-						head := rand.Intn(twoMB - cc.MessageSize)
+						head := rand.Intn(randMsgSize - cc.MessageSize)
 						var tail int
 						if c.RandMsgSize {
 							tail = head + rand.Intn(cc.MessageSize)
@@ -461,7 +474,7 @@ func test(c *Case) {
 					case "BatchPublishMessage":
 						var msgs []string
 						for x := 0; x < cc.MessageCount; x++ {
-							head := rand.Intn(twoMB - cc.MessageSize)
+							head := rand.Intn(randMsgSize - cc.MessageSize)
 							var tail int
 							if c.RandMsgSize {
 								tail = head + rand.Intn(cc.MessageSize)
@@ -511,7 +524,12 @@ func test(c *Case) {
 					})
 					cc.Locker.Unlock()
 				}
-			}(c), j)
+			}
+			if c.Concurrent > 1 {
+				s.Join(job(c), j)
+			} else {
+				job(c)(j)
+			}
 		}
 	}
 	wg.Wait()
