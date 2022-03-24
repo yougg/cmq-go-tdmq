@@ -356,13 +356,9 @@ func test(c *Case) {
 						wg.Done()
 					}()
 					if cc.MaximumTPS > 0 {
-						for {
-							// 如果当前TPS超过了设定限制的最大TPS则等待直到TPS下降再继续
-							if sumTPS() > cc.MaximumTPS {
-								time.Sleep(10 * time.Millisecond)
-							} else {
-								break
-							}
+						// 如果当前TPS超过了设定限制的最大TPS则等待直到TPS下降再继续
+						for sumTPS() > cc.MaximumTPS {
+							time.Sleep(time.Millisecond)
 						}
 					}
 					name := cc.ResourceName
