@@ -21,7 +21,9 @@ type Client struct {
 	SignMethod string   // HmacSHA1, HmacSHA256
 	SecretId   string   // AKIDxxxxx
 	SecretKey  string
+	Token      string
 	AppId      uint64 // appId for privatization, need gateway server option enabled
+	Header     map[string]string
 
 	Debug      bool // weather print request message
 	HttpClient *http.Client
@@ -79,6 +81,9 @@ func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
 	if c.AppId > 0 && c.SecretId == `` && c.SecretKey == `` {
 		values.Set(`appId`, strconv.FormatUint(c.AppId, 10))
 	} else {
+		if c.Token != `` {
+			values.Set(`Token`, c.Token)
+		}
 		values.Set(`SecretId`, c.SecretId)
 		values.Set(`SignatureMethod`, c.SignMethod)
 		values.Set(`Nonce`, strconv.FormatUint(uint64(rand.Uint32()), 10))
@@ -119,6 +124,9 @@ func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
 		return nil, fmt.Errorf("new http request: %w", err)
 	}
 	req.Header.Set(`Content-Type`, `application/x-www-form-urlencoded`)
+	for k, v := range c.Header {
+		req.Header.Set(k, v)
+	}
 	var resp *http.Response
 	if c.Debug {
 		fmt.Printf("curl -i -X %s -H 'Content-Type:application/x-www-form-urlencoded' '%s'", c.Method, u.String())
