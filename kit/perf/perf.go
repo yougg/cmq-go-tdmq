@@ -1,5 +1,5 @@
 //go:generate rm -f go.mod go.sum
-//go:generate go mod init github.com/yougg/cmq-go-tdmq/cmd/perf
+//go:generate go mod init github.com/yougg/cmq-go-tdmq/kit/perf
 //go:generate go mod tidy
 //go:generate go mod edit -replace=github.com/yougg/cmq-go-tdmq=../..
 //go:generate go mod tidy

@@ -3,7 +3,7 @@
 ## 安装/编译
 
 ```bash
-go install github.com/yougg/cmq-go-tdmq/cmd/cli@main
+go install github.com/yougg/cmq-go-tdmq/kit/cmd@main
 ```
 
 ```bash
