@@ -60,7 +60,7 @@ func init() {
 	flag.StringVar(&queue, "q", "", "queue name")
 	flag.StringVar(&topic, "t", "", "topic name")
 	flag.StringVar(&route, "r", "", "routing key")
-	flag.StringVar(&action, "a", "", "action: send, receive, delete, publish, sends, receives, deletes, publishes")
+	flag.StringVar(&action, "a", "", "action: query, send, receive, delete, publish, sends, receives, deletes, publishes")
 	flag.Var(&msgs, "m", "message(s), repeat '-m' 2~16 times to set multi messages")
 	flag.Var(&tags, "tag", "tag(s), repeat '-tag' multi times to set multi tags")
 	flag.Var(&handles, "handle", "handle(s), repeat '-handle' 2~16 times to set multi handles")
@@ -86,6 +86,8 @@ func main() {
 	client.Debug = debug
 
 	switch action {
+	case `query`:
+		query()
 	case `send`:
 		send()
 	case `sends`:
@@ -104,6 +106,31 @@ func main() {
 		publishes()
 	default:
 		fmt.Println("invalid action:", action)
+	}
+}
+
+func query() {
+	switch {
+	case queue != ``:
+		r, err := client.QueryQueueRoute(queue)
+		if err != nil {
+			fmt.Println("query topic route:", err)
+			return
+		}
+		if !debug {
+			fmt.Println("query queue route:", r)
+		}
+	case topic != ``:
+		r, err := client.QueryTopicRoute(topic)
+		if err != nil {
+			fmt.Println("query topic route:", err)
+			return
+		}
+		if !debug {
+			fmt.Println("query topic route:", r)
+		}
+	default:
+		fmt.Printf("invalid query parameters, queue: %s, topic: %s\n", queue, topic)
 	}
 }
 
