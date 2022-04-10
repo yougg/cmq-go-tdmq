@@ -78,9 +78,10 @@ const randMsgSize = 2 * 1024 * 1024 // 2M
 var (
 	addr string
 
-	uris list
-	sid  string
-	key  string
+	uris    list
+	headers list
+	sid     string
+	key     string
 
 	timeout   int
 	keepalive bool
@@ -103,6 +104,7 @@ var (
 func init() {
 	flag.StringVar(&addr, "http", "", "pprof listen address for perf tool, ex: 0.0.0.0:6666")
 	flag.Var(&uris, "u", "URI(s), repeat '-u' multi times to set multi URIs")
+	flag.Var(&headers, "H", "headers, repeat '-H' multi times to set multi headers")
 	flag.StringVar(&sid, "i", "", "secret id")
 	flag.StringVar(&key, "k", "", "secret key")
 	flag.StringVar(&kase, "c", "cases.json", "test case file")
@@ -159,6 +161,16 @@ func main() {
 			return
 		}
 		client.Debug = debug
+		if len(headers) > 0 {
+			client.Header = map[string]string{}
+			for _, h := range headers {
+				kv := strings.Split(h, ":")
+				if len(kv) != 2 {
+					continue
+				}
+				client.Header[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+			}
+		}
 		clients = append(clients, client)
 	}
 	if count = len(clients); count == 0 {
