@@ -57,9 +57,8 @@ type Case struct {
 }
 
 type Statistics struct {
-	Begin   time.Time
-	End     time.Time
-	Succeed bool
+	CostTime time.Duration
+	Succeed  bool
 }
 
 type list []string
@@ -241,7 +240,7 @@ func main() {
 		t := tachymeter.New(&tachymeter.Config{Size: l})
 		var successes int
 		for _, s := range c.Statistics {
-			t.AddTime(s.End.Sub(s.Begin))
+			t.AddTime(s.CostTime)
 			if s.Succeed {
 				successes++
 			}
@@ -526,9 +525,8 @@ func test(c *Case) {
 						end = &now
 					}
 					cc.Statistics = append(cc.Statistics, &Statistics{
-						Begin:   begin,
-						End:     *end,
-						Succeed: succeed,
+						CostTime: end.Sub(begin),
+						Succeed:  succeed,
 					})
 					cc.Locker.Unlock()
 				}
