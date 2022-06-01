@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	tdmq "github.com/yougg/cmq-go-tdmq"
+	tcmq "github.com/yougg/cmq-go-tdmq"
 )
 
 type list []string
@@ -30,8 +30,9 @@ var (
 	topic  string
 	action string
 
-	msg  string
-	msgs list
+	msg    string
+	msgs   list
+	length int
 
 	handle  string
 	handles list
@@ -49,7 +50,7 @@ var (
 )
 
 var (
-	client *tdmq.Client
+	client *tcmq.Client
 )
 
 func init() {
@@ -61,6 +62,7 @@ func init() {
 	flag.StringVar(&topic, "t", "", "topic name")
 	flag.StringVar(&route, "r", "", "routing key")
 	flag.StringVar(&action, "a", "", "action: query, send, receive, delete, publish, sends, receives, deletes, publishes")
+	flag.IntVar(&length, "l", 0, "length: send/publish message with specified length")
 	flag.Var(&msgs, "m", "message(s), repeat '-m' 2~16 times to set multi messages")
 	flag.Var(&tags, "tag", "tag(s), repeat '-tag' multi times to set multi tags")
 	flag.Var(&handles, "handle", "handle(s), repeat '-handle' 2~16 times to set multi handles")
@@ -78,7 +80,7 @@ func init() {
 
 func main() {
 	var err error
-	client, err = tdmq.NewClient(uri, sid, key, time.Duration(timeout)*time.Second)
+	client, err = tcmq.NewClient(uri, sid, key, time.Duration(timeout)*time.Second)
 	if err != nil {
 		fmt.Println("new TDMQ-CMQ client", err)
 		return
@@ -137,6 +139,8 @@ func query() {
 func send() {
 	if len(msgs) > 0 {
 		msg = msgs[0]
+	} else if length > 0 {
+		msg = strings.Repeat("#", length)
 	} else {
 		fmt.Println("no message to send, use -m to set message")
 		return
@@ -194,6 +198,8 @@ func remove() {
 func publish() {
 	if len(msgs) > 0 {
 		msg = msgs[0]
+	} else if length > 0 {
+		msg = strings.Repeat("#", length)
 	} else {
 		fmt.Println("no message to publish, use -m to set message")
 		return

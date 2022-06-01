@@ -2,13 +2,17 @@
 
 ## 安装/编译
 
+### 安装二进制到`$GOPATH/bin`
+
 ```bash
 go install github.com/yougg/cmq-go-tdmq/kit/cmd@main
 ```
 
+### 从源码编译二进制
+
 ```bash
 git clone https://github.com/yougg/cmq-go-tdmq.git
-cd cmq-go-tdmq/cmd/cli/
+cd cmq-go-tdmq/kit/cmd/
 GOOS=linux go generate tdmqcli.go
 GOOS=darwin go generate tdmqcli.go
 GOOS=windows go generate tdmqcli.go
