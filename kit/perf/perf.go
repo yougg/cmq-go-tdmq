@@ -31,29 +31,29 @@ import (
 )
 
 type Case struct {
-	Description        string        `json:"Description,omitempty"`        // 用例描述：执行1000次 向1个队列发送1条1KB的消息
-	Enabled            bool          `json:"CaseEnabled,omitempty"`        // 是否启用本用例：true, false
-	RepeatTimes        int           `json:"RepeatTimes,omitempty"`        // 用例重复次数
-	RepeatTimeout      int           `json:"RepeatTimeout,omitempty"`      // 用例固定重复执行时间, 单位:秒, 非0时 RepeatTimes 配置无效
-	Concurrent         int           `json:"Concurrent,omitempty"`         // 最大并发数量
-	MaximumTPS         int           `json:"MaximumTPS,omitempty"`         // 最大限制TPS：0: 不限制，非0: 限制对应数量TPS
-	ResourceType       string        `json:"ResourceType,omitempty"`       // 请求的资源类型：queue, topic
-	ResourceName       string        `json:"ResourceName,omitempty"`       // 请求的资源名称：队列／主题的全名或者前缀，关联下面资源数量(1条时使用全名，多条时使用前缀)
-	ResourceCount      int           `json:"ResourceCount,omitempty"`      // 请求的资源数量：1个或多个队列／主题
-	RandMsgSize        bool          `json:"RandMsgSize,omitempty"`        // 请求的消息体积使用[1 ~ MessageSize]范围内的随机大小
-	MessageSize        int           `json:"MessageSize,omitempty"`        // 请求的消息体积：1024B == 1KB，单条消息的体积，批量请求时总体积不能超过1MB
-	MessageCount       int           `json:"MessageCount,omitempty"`       // 请求的消息数量：1条，每次Action请求消息数量，Batch批量Action请求为1~16条
-	Action             string        `json:"Action,omitempty"`             // 请求消息的动作：QueryQueueRoute,SendMessage,BatchSendMessage,ReceiveMessage,BatchReceiveMessage,DeleteMessage,BatchDeleteMessage,QueryTopicRoute,PublishMessage,BatchPublishMessage
-	AloneRecvTime      bool          `json:"AloneRecvTime,omitempty"`      // 拉取消息是否分隔Ack进行独立计时：true, false
-	AckEnabled         bool          `json:"AckEnabled,omitempty"`         // 拉取到消息后是否向服务端Ack确认(删除)该条消息
-	ReceiptHandles     []string      `json:"ReceiptHandles,omitempty"`     // 请求删除消息ID列表
-	DelaySeconds       int           `json:"DelaySeconds,omitempty"`       // 单位为秒，消息发送到队列后，延时多久用户才可见该消息。
-	PollingWaitSeconds int           `json:"PollingWaitSeconds,omitempty"` // 长轮询等待时间。取值范围0 - 30秒
-	RoutingKey         string        `json:"RoutingKey,omitempty"`         // 发送消息的路由路径
-	Tags               []string      `json:"Tags,omitempty"`               // 消息过滤标签
-	Statistics         []*Statistics `json:"-"`                            // 请求耗时与结果统计
-	TPSes              sort.IntSlice `json:"-"`                            // 每秒完成事务统计
-	Locker             *sync.Mutex   `json:"-"`
+	Description        string           `json:"Description,omitempty"`        // 用例描述：执行1000次 向1个队列发送1条1KB的消息
+	Enabled            bool             `json:"CaseEnabled,omitempty"`        // 是否启用本用例：true, false
+	RepeatTimes        int              `json:"RepeatTimes,omitempty"`        // 用例重复次数
+	RepeatTimeout      int              `json:"RepeatTimeout,omitempty"`      // 用例固定重复执行时间, 单位:秒, 非0时 RepeatTimes 配置无效
+	Concurrent         int              `json:"Concurrent,omitempty"`         // 最大并发数量
+	MaximumTPS         int              `json:"MaximumTPS,omitempty"`         // 最大限制TPS：0: 不限制，非0: 限制对应数量TPS
+	ResourceType       string           `json:"ResourceType,omitempty"`       // 请求的资源类型：queue, topic
+	ResourceName       string           `json:"ResourceName,omitempty"`       // 请求的资源名称：队列／主题的全名或者前缀，关联下面资源数量(1条时使用全名，多条时使用前缀)
+	ResourceCount      int              `json:"ResourceCount,omitempty"`      // 请求的资源数量：1个或多个队列／主题
+	RandMsgSize        bool             `json:"RandMsgSize,omitempty"`        // 请求的消息体积使用[1 ~ MessageSize]范围内的随机大小
+	MessageSize        int              `json:"MessageSize,omitempty"`        // 请求的消息体积：1024B == 1KB，单条消息的体积，批量请求时总体积不能超过1MB
+	MessageCount       int              `json:"MessageCount,omitempty"`       // 请求的消息数量：1条，每次Action请求消息数量，Batch批量Action请求为1~16条
+	Action             string           `json:"Action,omitempty"`             // 请求消息的动作：QueryQueueRoute,SendMessage,BatchSendMessage,ReceiveMessage,BatchReceiveMessage,DeleteMessage,BatchDeleteMessage,QueryTopicRoute,PublishMessage,BatchPublishMessage
+	AloneRecvTime      bool             `json:"AloneRecvTime,omitempty"`      // 拉取消息是否分隔Ack进行独立计时：true, false
+	AckEnabled         bool             `json:"AckEnabled,omitempty"`         // 拉取到消息后是否向服务端Ack确认(删除)该条消息
+	ReceiptHandles     []string         `json:"ReceiptHandles,omitempty"`     // 请求删除消息ID列表
+	DelaySeconds       int              `json:"DelaySeconds,omitempty"`       // 单位为秒，消息发送到队列后，延时多久用户才可见该消息。
+	PollingWaitSeconds int              `json:"PollingWaitSeconds,omitempty"` // 长轮询等待时间。取值范围0 - 30秒
+	RoutingKey         string           `json:"RoutingKey,omitempty"`         // 发送消息的路由路径
+	Tags               []string         `json:"Tags,omitempty"`               // 消息过滤标签
+	Statistics         []*Statistics    `json:"-"`                            // 请求耗时与结果统计
+	TPSes              sort.IntSlice    `json:"-"`                            // 每秒完成事务统计
+	StatsChan          chan *Statistics `json:"-"`                            // 请求耗时与结果传递管道
 }
 
 type Statistics struct {
@@ -328,7 +328,22 @@ func test(c *Case) {
 		}
 	}()
 	wg := &sync.WaitGroup{}
-	c.Locker = &sync.Mutex{}
+	var capacity int
+	if c.RepeatTimeout > 0 {
+		capacity = c.MaximumTPS * c.RepeatTimeout * c.ResourceCount
+	} else {
+		capacity = c.RepeatTimes * c.ResourceCount
+	}
+	if size := 100 * 1024 * 1024; capacity > size {
+		capacity = size
+	}
+	c.Statistics = make([]*Statistics, 0, capacity)
+	c.StatsChan = make(chan *Statistics, 1000)
+	go func() {
+		for s := range c.StatsChan {
+			c.Statistics = append(c.Statistics, s)
+		}
+	}()
 	ch := make(chan struct{}, 1)
 	go func() {
 		if c.RepeatTimeout > 0 {
@@ -519,16 +534,16 @@ func test(c *Case) {
 							}
 						}
 					}
-					cc.Locker.Lock()
+					var cost time.Duration
 					if end == nil {
-						now := time.Now()
-						end = &now
+						cost = time.Since(begin)
+					} else {
+						cost = end.Sub(begin)
 					}
-					cc.Statistics = append(cc.Statistics, &Statistics{
-						CostTime: end.Sub(begin),
+					cc.StatsChan <- &Statistics{
+						CostTime: cost,
 						Succeed:  succeed,
-					})
-					cc.Locker.Unlock()
+					}
 				}
 			}
 			if c.Concurrent > 1 {
@@ -539,6 +554,7 @@ func test(c *Case) {
 		}
 	}
 	wg.Wait()
+	close(c.StatsChan)
 }
 
 // hash consistent hash and mod to get client index
