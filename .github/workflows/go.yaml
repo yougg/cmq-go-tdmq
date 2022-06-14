@@ -1,0 +1,56 @@
+name: Go
+
+on:
+  release:
+    types:
+      - created
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: darwin
+            goarch: amd64
+          - goos: windows
+            goarch: amd64
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+      - name: Build tcmqcli
+        run: go generate kit/cmq/tcmqcli.go
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+      - name: Build perf
+        run: go generate kit/perf/perf.go
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+      - name: Uploading tcmqcli assets...
+        if: ${{ !env.ACT }}
+        id: upload-tcmqcli-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./kit/cmq/tcmqcli_${{ matrix.goos }}_${{ matrix.goarch }}
+          asset_name: tcmqcli_${{ matrix.goos }}_${{ matrix.goarch }}
+      - name: Uploading perf assets...
+        if: ${{ !env.ACT }}
+        id: upload-perf-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./kit/perf/perf_${{ matrix.goos }}_${{ matrix.goarch }}
+          asset_name: perf_${{ matrix.goos }}_${{ matrix.goarch }}
