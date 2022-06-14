@@ -44,6 +44,7 @@ jobs:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./kit/cmq/tcmqcli_${{ matrix.goos }}_${{ matrix.goarch }}
           asset_name: tcmqcli_${{ matrix.goos }}_${{ matrix.goarch }}
+          asset_content_type: application/octet-stream
       - name: Uploading perf assets...
         if: ${{ !env.ACT }}
         id: upload-perf-asset
@@ -54,3 +55,4 @@ jobs:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./kit/perf/perf_${{ matrix.goos }}_${{ matrix.goarch }}
           asset_name: perf_${{ matrix.goos }}_${{ matrix.goarch }}
+          asset_content_type: application/octet-stream
