@@ -1,9 +1,9 @@
-//go:generate rm -f go.mod go.sum
-//go:generate go mod init github.com/yougg/cmq-go-tdmq/kit/perf
-//go:generate go mod tidy
-//go:generate go mod edit -replace=github.com/yougg/cmq-go-tdmq=../..
-//go:generate go mod tidy
-//go:generate go build -trimpath -buildmode pie -installsuffix netgo -tags "osusergo netgo static_build" -ldflags "-s -w" ${GOFILE}
+////go:generate rm -f go.mod go.sum
+////go:generate go mod init github.com/yougg/cmq-go-tdmq/kit/perf
+////go:generate go mod tidy
+////go:generate go mod edit -replace=github.com/yougg/cmq-go-tdmq=../..
+////go:generate go mod tidy
+//go:generate go build -trimpath -buildmode pie -installsuffix netgo -tags "osusergo netgo static_build" -ldflags "-s -w" -o perf_${GOOS}_${GOARCH}${GOEXE} ${GOFILE}
 package main
 
 import (
@@ -26,7 +26,7 @@ import (
 	"unsafe"
 
 	"github.com/jamiealquiza/tachymeter"
-	tdmq "github.com/yougg/cmq-go-tdmq"
+	tcmq "github.com/yougg/cmq-go-tdmq"
 	"github.com/yougg/pool"
 )
 
@@ -89,7 +89,7 @@ var (
 	showErr bool
 	showTPS int
 
-	clients []*tdmq.Client // multiple clients for load balance by consistent hash
+	clients []*tcmq.Client // multiple clients for load balance by consistent hash
 	count   int            // created clients count
 
 	kase  string
@@ -154,7 +154,7 @@ func main() {
 
 	// client load balance (multiple servers)
 	for _, u := range uris {
-		client, err := tdmq.NewClient(u, sid, key, time.Duration(timeout)*time.Second, keepalive)
+		client, err := tcmq.NewClient(u, sid, key, time.Duration(timeout)*time.Second, keepalive)
 		if err != nil {
 			log.Println("new TDMQ-CMQ client", err)
 			return
@@ -394,13 +394,13 @@ func test(c *Case) {
 					}
 					begin := time.Now()
 					k := cc.Action + name + begin.String()
-					var client *tdmq.Client
+					var client *tcmq.Client
 					if count > 1 {
 						client = clients[hash(k, count)]
 					} else {
 						client = clients[0]
 					}
-					var resp tdmq.Result
+					var resp tcmq.Result
 					var end *time.Time
 					switch cc.Action {
 					case "QueryQueueRoute":
@@ -436,7 +436,7 @@ func test(c *Case) {
 						}
 						resp, err = client.BatchSendMessage(name, msgs, cc.DelaySeconds)
 					case "ReceiveMessage":
-						var res tdmq.ResponseRM
+						var res tcmq.ResponseRM
 						res, err = client.ReceiveMessage(name, cc.PollingWaitSeconds)
 						if c.AloneRecvTime {
 							now := time.Now()
@@ -448,7 +448,7 @@ func test(c *Case) {
 							resp = res
 						}
 					case "BatchReceiveMessage":
-						var res tdmq.ResponseRMs
+						var res tcmq.ResponseRMs
 						res, err = client.BatchReceiveMessage(name, cc.PollingWaitSeconds, cc.MessageCount)
 						if c.AloneRecvTime {
 							now := time.Now()

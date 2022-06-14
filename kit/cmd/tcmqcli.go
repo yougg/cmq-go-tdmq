@@ -1,4 +1,4 @@
-//go:generate go build -trimpath -buildmode pie -installsuffix netgo -tags "osusergo netgo static_build" -ldflags "-s -w" ${GOFILE}
+//go:generate go build -trimpath -buildmode pie -installsuffix netgo -tags "osusergo netgo static_build" -ldflags "-s -w" -o tcmqcli_${GOOS}_${GOARCH}${GOEXE} ${GOFILE}
 package main
 
 import (

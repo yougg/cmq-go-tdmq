@@ -1,4 +1,4 @@
-# Tencent CMQ to TDMQ compatible Go SDK
+# Tencent TDMQ-CMQ Go SDK
 
 Manage API: https://cloud.tencent.com/document/product/1496/62819
 
@@ -33,18 +33,19 @@ import (
     "fmt"
     "time"
 
-    tdmq "github.com/yougg/cmq-go-tdmq"
+    tcmq "github.com/yougg/cmq-go-tdmq"
 )
 
 func main() {
     // get your own secretId/secretKey: https://console.cloud.tencent.com/cam/capi
-    client, err := tdmq.NewClient("https://cmq-gz.public.tencenttdmq.com","AKIDxxxxx","xxxxx",5*time.Second)
+    client, err := tcmq.NewClient("https://cmq-gz.public.tencenttdmq.com","AKIDxxxxx","xxxxx",5*time.Second)
     if err != nil {
         fmt.Println("new TDMQ-CMQ client", err)
         return
     }
     // client.AppId = 12345  // for privatization without authentication
     // client.Method = `GET` // default: POST
+	// client.Token = `your_token` // for temporary secretId/secretKey auth with token 
     client.Debug = true
 
     resp0, err := client.SendMessage(`queue0`, `message test 0`, 0)
