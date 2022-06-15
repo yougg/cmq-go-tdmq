@@ -40,6 +40,7 @@ type Case struct {
 	ResourceType       string           `json:"ResourceType,omitempty"`       // 请求的资源类型：queue, topic
 	ResourceName       string           `json:"ResourceName,omitempty"`       // 请求的资源名称：队列／主题的全名或者前缀，关联下面资源数量(1条时使用全名，多条时使用前缀)
 	ResourceCount      int              `json:"ResourceCount,omitempty"`      // 请求的资源数量：1个或多个队列／主题
+	ResourceStartIdx   int              `json:"ResourceStartIdx,omitempty"`   // 请求的资源列表开始索引
 	RandMsgSize        bool             `json:"RandMsgSize,omitempty"`        // 请求的消息体积使用[1 ~ MessageSize]范围内的随机大小
 	MessageSize        int              `json:"MessageSize,omitempty"`        // 请求的消息体积：1024B == 1KB，单条消息的体积，批量请求时总体积不能超过1MB
 	MessageCount       int              `json:"MessageCount,omitempty"`       // 请求的消息数量：1条，每次Action请求消息数量，Batch批量Action请求为1~16条
@@ -390,6 +391,7 @@ func test(c *Case) {
 					name := cc.ResourceName
 					if cc.ResourceCount > 1 {
 						n := args[0].(int)
+						n += cc.ResourceStartIdx
 						name += strconv.Itoa(n)
 					}
 					begin := time.Now()
