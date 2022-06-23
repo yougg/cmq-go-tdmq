@@ -14,11 +14,13 @@ jobs:
         include:
           - goos: linux
             goarch: amd64
+            goz: .gz
           - goos: darwin
             goarch: amd64
+            goz: .gz
           - goos: windows
             goarch: amd64
-            goexe: .exe
+            goz: .zip
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go
@@ -43,8 +45,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./kit/cmd/tcmqcli_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.goexe }}
-          asset_name: tcmqcli_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.goexe }}
+          asset_path: ./kit/cmd/tcmqcli_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.goz }}
+          asset_name: tcmqcli_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.goz }}
           asset_content_type: application/octet-stream
       - name: Uploading perf assets...
         if: ${{ !env.ACT }}
@@ -54,6 +56,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./kit/perf/perf_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.goexe }}
-          asset_name: perf_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.goexe }}
+          asset_path: ./kit/perf/perf_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.goz }}
+          asset_name: perf_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.goz }}
           asset_content_type: application/octet-stream

@@ -3,7 +3,8 @@
 ////go:generate go mod tidy
 ////go:generate go mod edit -replace=github.com/yougg/cmq-go-tdmq=../..
 ////go:generate go mod tidy
-//go:generate go build -trimpath -buildmode pie -installsuffix netgo -tags "osusergo netgo static_build" -ldflags "-s -w" -o perf_${GOOS}_${GOARCH}${GOEXE} ${GOFILE}
+//go:generate go build -trimpath -buildmode pie -installsuffix netgo -tags "osusergo netgo static_build" -ldflags "-s -w" ${GOFILE}
+//go:generate sh -c "[ -z \"${GOEXE}\" ] && gzip -S _${GOOS}_${GOARCH}.gz perf || zip -mjq perf_${GOOS}_${GOARCH}.zip perf${GOEXE}"
 package main
 
 import (
