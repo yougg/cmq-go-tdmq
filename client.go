@@ -152,6 +152,9 @@ func (c *Client) call(values url.Values) (msg *msgResponse, err error) {
 		Status: resp.StatusCode,
 		Raw:    raw,
 	}
+	if !json.Valid(data) {
+		return nil, fmt.Errorf("got invalid json response: %s", raw)
+	}
 	err = json.Unmarshal(data, msg)
 	if err != nil {
 		return nil, fmt.Errorf("json decode: %w, response: %s", err, raw)
