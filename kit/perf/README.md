@@ -2,7 +2,20 @@
 
 ## 编译构建
 
-> 要求使用最新[Go SDK](https://golang.google.cn/dl/)
+### 下载预编译的二进制安装
+
+https://github.com/yougg/cmq-go-tdmq/releases
+
+<details>
+  <summary>从源码安装</summary>
+
+### 安装二进制到`$GOPATH/bin`
+
+```bash
+go install github.com/yougg/cmq-go-tdmq/kit/perf@main
+```
+
+### 从源码编译二进制
 
 ```shell
 GOOS=linux go generate perf.go
@@ -12,10 +25,13 @@ GOOS=windows go generate perf.go
 
 > 编译输出文件: `perf` 或 `perf.exe`
 
+</details>
+
 ## 编写性能测试用例
 
 > 完整用例配置文件参考  
-> 一个用例文件可以包含多条用例, 用例串行执行, 可设置是否启用一条用例
+> 一个用例文件可以包含多条用例, 用例串行执行, 可设置是否启用一条用例  
+> 可配置多个用例文件启动多个性能测试进程同时进行压测
 
 ```yaml
 ---
@@ -33,8 +49,8 @@ GOOS=windows go generate perf.go
   MessageCount: 1      # 请求的消息数量：1条，每次Action请求消息数量，Batch批量Action请求为1~16条
   Action: SendMessage  # 请求消息的动作：QueryQueueRoute,SendMessage,BatchSendMessage,ReceiveMessage,BatchReceiveMessage,DeleteMessage,BatchDeleteMessage,QueryTopicRoute,PublishMessage,BatchPublishMessage
   ReceiptHandles:      # 请求删除消息ID列表
-    - '111'
-    - '222'
+    - "111"
+    - "222"
   DelaySeconds: 123       # 单位为秒，消息发送到队列后，延时多久用户才可见该消息。
   PollingWaitSeconds: 123 # 长轮询等待时间。取值范围0 - 30秒
   RoutingKey: routing_key # 发送消息的路由路径
@@ -121,5 +137,7 @@ GOOS=windows go generate perf.go
 ```shell
 ./perf -h # 查看命令参数帮助
 
-./perf -e -keepalive -s 1 -u 'http://12.34.56.78:9990' -i 'AKIDxxxxx' -k 'abcdefghijk' -c cases.json
+./perf -e -keepalive -s 1 -u "http://12.34.56.78:9999" -i "AKIDxxxxx" -k "abcdefghijk" -c cases.json
+
+nohup ./perf -e -keepalive -s 1 -u "http://12.34.56.78:9999" -i "AKIDxxxxx" -k "abcdefghijk" -c cases1.json &>> cases1.log &
 ```
