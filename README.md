@@ -43,10 +43,10 @@ func main() {
         fmt.Println("new TDMQ-CMQ client", err)
         return
     }
-    // client.AppId = 12345  // for privatization without authentication
+    // client.AppId = 12345  // for privatization request without authentication
     // client.Method = `GET` // default: POST
-	// client.Token = `your_token` // for temporary secretId/secretKey auth with token 
-    client.Debug = true
+    // client.Token = `your_token` // for temporary secretId/secretKey auth with token 
+    client.Debug = true // verbose print each request
 
     resp0, err := client.SendMessage(`queue0`, `message test 0`, 0)
     if err != nil {
@@ -82,21 +82,21 @@ func main() {
         fmt.Println("batch receive message:", err)
         return
     }
-   fmt.Println("Response:", msgs)
+    fmt.Println("Response:", msgs)
     var handles []string
     for _, msg := range msgs.MsgInfos() {
         if len(msg.Handle()) > 0 {
             handles = append(handles, msg.Handle())
         }
     }
-  
+
     if len(handles) > 0 {
-      res, err := client.BatchDeleteMessage(`queue0`, handles)
-      if err != nil {
-          fmt.Println("batch delete message:", err)
-          return
-      }
-      fmt.Println("batch delete result:", res)
+        res, err := client.BatchDeleteMessage(`queue0`, handles)
+        if err != nil {
+            fmt.Println("batch delete message:", err)
+            return
+        }
+        fmt.Println("batch delete result:", res)
     }
 
     resp5, err := client.PublishMessage(`topic0`, `message test 1`, ``, nil)
@@ -105,7 +105,7 @@ func main() {
         return
     }
     fmt.Println("Response:", resp5)
-  
+
     msgS, err := client.BatchPublishMessage(`topic0`, ``, []string{"x","y","z"}, nil)
     if err != nil {
         fmt.Println("publish message:", err)
