@@ -18,20 +18,20 @@ import (
 func (c *Client) PublishMessage(topic, message, routingKey string, tags []string) (ResponseSM, error) {
 	switch {
 	case !nameReg.MatchString(topic):
-		return nil, fmt.Errorf("%w topic name(0<len<65): %s", ErrInvalidParameter, topic)
-	case message == `` || len(message) > 1048576:
-		return nil, fmt.Errorf("%w message length(0<len<1048576): %d", ErrInvalidParameter, len(message))
-	case len(routingKey) > 64:
-		return nil, fmt.Errorf("%w routing key(0<=len<65): %s", ErrInvalidParameter, routingKey)
-	case len(tags) > 5:
-		return nil, fmt.Errorf("%w message tags count[0~5]: %v", ErrInvalidParameter, tags)
+		return nil, fmt.Errorf("%w topic name(0<len<%d): %s", ErrInvalidParameter, MaxTopicNameSize+1, topic)
+	case message == `` || len(message) > MaxMessageSize:
+		return nil, fmt.Errorf("%w message length(0<len<%d): %d", ErrInvalidParameter, MaxMessageSize+1, len(message))
+	case len(routingKey) > MaxRouteKeyLength:
+		return nil, fmt.Errorf("%w routing key(0<=len<%d): %s", ErrInvalidParameter, MaxRouteKeyLength+1, routingKey)
+	case len(tags) > MaxTagCount:
+		return nil, fmt.Errorf("%w message tags count[0~%d]: %v", ErrInvalidParameter, MaxTagCount, tags)
 	default:
-		if strings.Count(routingKey, `.`) > 15 {
-			return nil, fmt.Errorf("%w more than 15 dot(.) in routing key: %s", ErrInvalidParameter, routingKey)
+		if strings.Count(routingKey, `.`) > MaxRouteKeyDots {
+			return nil, fmt.Errorf("%w more than %d dot(.) in routing key: %s", ErrInvalidParameter, MaxRouteKeyDots, routingKey)
 		}
 		for _, v := range tags {
-			if v == `` || len(v) > 16 {
-				return nil, fmt.Errorf("%w message tag(0<len<17): %s", ErrInvalidParameter, v)
+			if v == `` || len(v) > MaxTagLength {
+				return nil, fmt.Errorf("%w message tag(0<len<%d): %s", ErrInvalidParameter, MaxTagLength+1, v)
 			}
 		}
 	}
@@ -58,25 +58,25 @@ func (c *Client) PublishMessage(topic, message, routingKey string, tags []string
 func (c *Client) BatchPublishMessage(topic, routingKey string, messages, tags []string) (ResponseSMs, error) {
 	switch {
 	case !nameReg.MatchString(topic):
-		return nil, fmt.Errorf("%w topic name(0<len<65): %s", ErrInvalidParameter, topic)
-	case len(messages) == 0 || len(messages) > 16:
-		return nil, fmt.Errorf("%w messages count(0~16]: %d", ErrInvalidParameter, len(messages))
-	case len(routingKey) > 64:
-		return nil, fmt.Errorf("%w routing key(0<=len<65): %s", ErrInvalidParameter, routingKey)
-	case len(tags) > 5:
-		return nil, fmt.Errorf("%w message tags count[0~5]: %v", ErrInvalidParameter, tags)
+		return nil, fmt.Errorf("%w topic name(0<len<%d): %s", ErrInvalidParameter, MaxTopicNameSize+1, topic)
+	case len(messages) == 0 || len(messages) > MaxMessageCount:
+		return nil, fmt.Errorf("%w messages count(0~%d]: %d", ErrInvalidParameter, MaxMessageCount, len(messages))
+	case len(routingKey) > MaxRouteKeyLength:
+		return nil, fmt.Errorf("%w routing key(0<=len<%d): %s", ErrInvalidParameter, MaxRouteKeyLength+1, routingKey)
+	case len(tags) > MaxTagCount:
+		return nil, fmt.Errorf("%w message tags count[0~%d]: %v", ErrInvalidParameter, MaxTagCount, tags)
 	default:
-		if strings.Count(routingKey, `.`) > 15 {
-			return nil, fmt.Errorf("%w more than 15 dot(.) in routing key: %s", ErrInvalidParameter, routingKey)
+		if strings.Count(routingKey, `.`) > MaxRouteKeyDots {
+			return nil, fmt.Errorf("%w more than %d dot(.) in routing key: %s", ErrInvalidParameter, MaxRouteKeyDots, routingKey)
 		}
 		for _, v := range messages {
-			if v == `` || len(v) > 1048576 {
-				return nil, fmt.Errorf("%w message length(0<len<1048576): %s", ErrInvalidParameter, v)
+			if v == `` || len(v) > MaxMessageSize {
+				return nil, fmt.Errorf("%w message length(0<len<%d): %s", ErrInvalidParameter, MaxMessageSize+1, v)
 			}
 		}
 		for _, v := range tags {
-			if v == `` || len(v) > 16 {
-				return nil, fmt.Errorf("%w message tag(0<len<17): %s", ErrInvalidParameter, v)
+			if v == `` || len(v) > MaxTagLength {
+				return nil, fmt.Errorf("%w message tag(0<len<%d): %s", ErrInvalidParameter, MaxTagLength+1, v)
 			}
 		}
 	}

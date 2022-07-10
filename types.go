@@ -189,8 +189,3 @@ const (
 var (
 	ErrInvalidParameter = errors.New("invalid parameter")
 )
-
-var (
-	nameReg   = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]{0,63}$`)
-	handleReg = regexp.MustCompile(`^[1-9][0-9]{0,79}$`)
-)
