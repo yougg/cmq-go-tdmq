@@ -189,6 +189,9 @@ func send() {
 		msg = msgs[0]
 	} else if length > 0 {
 		msg = strings.Repeat("#", length)
+		if length > tcmq.MaxMessageSize {
+			tcmq.MaxMessageSize = length
+		}
 	} else {
 		log.Println("no message to send, use -m to set message")
 		return
@@ -244,12 +247,16 @@ func acknowledge() {
 }
 
 func publish() {
-	if len(msgs) > 0 {
+	switch {
+	case len(msgs) > 0 && len(msgs[0]) > 0:
 		msg = msgs[0]
-	} else if length > 0 {
+	case length > 0:
 		msg = strings.Repeat("#", length)
-	} else {
-		fmt.Println("no message to publish, use -m to set message")
+		if length > tcmq.MaxMessageSize {
+			tcmq.MaxMessageSize = length
+		}
+	default:
+		log.Println("no message to publish, use -m to set message")
 		return
 	}
 	resp, err := client.PublishMessage(topic, msg, route, tags)
@@ -263,6 +270,31 @@ func publish() {
 }
 
 func sends() {
+	switch {
+	case len(msgs) > 0:
+		for i := range msgs {
+			if len(msgs[i]) == 0 {
+				log.Println("message is empty")
+				return
+			}
+		}
+	case length > 0:
+		msg = strings.Repeat(`#`, length)
+		if length > tcmq.MaxMessageSize {
+			tcmq.MaxMessageSize = length
+		}
+		if number > 1 {
+			msgs = make(list, 0, number)
+			for i := 0; i < number; i++ {
+				msgs = append(msgs, msg)
+			}
+		} else {
+			msgs = list{msg}
+		}
+	default:
+		log.Println("no message to send, use -m to set message")
+		return
+	}
 	resp, err := client.BatchSendMessage(queue, msgs, delay)
 	if err != nil {
 		log.Println("batch send message:", err)
@@ -317,6 +349,31 @@ func acknowledges() {
 }
 
 func publishes() {
+	switch {
+	case len(msgs) > 0:
+		for i := range msgs {
+			if len(msgs[i]) == 0 {
+				log.Println("message is empty")
+				return
+			}
+		}
+	case length > 0:
+		msg = strings.Repeat(`#`, length)
+		if length > tcmq.MaxMessageSize {
+			tcmq.MaxMessageSize = length
+		}
+		if number > 1 {
+			msgs = make(list, 0, number)
+			for i := 0; i < number; i++ {
+				msgs = append(msgs, msg)
+			}
+		} else {
+			msgs = list{msg}
+		}
+	default:
+		log.Println("no message to publish, use -m to set message")
+		return
+	}
 	resp, err := client.BatchPublishMessage(topic, route, msgs, tags)
 	if err != nil {
 		log.Println("publish message:", err)
