@@ -164,23 +164,23 @@ func query() {
 	case queue != ``:
 		r, err := client.QueryQueueRoute(queue)
 		if err != nil {
-			fmt.Println("query topic route:", err)
+			log.Println("query queue route:", err)
 			return
 		}
 		if !debug {
-			fmt.Println("query queue route:", r)
+			fmt.Println(r)
 		}
 	case topic != ``:
 		r, err := client.QueryTopicRoute(topic)
 		if err != nil {
-			fmt.Println("query topic route:", err)
+			log.Println("query topic route:", err)
 			return
 		}
 		if !debug {
-			fmt.Println("query topic route:", r)
+			fmt.Println(r)
 		}
 	default:
-		fmt.Printf("invalid query parameters, queue: %s, topic: %s\n", queue, topic)
+		log.Printf("invalid query parameters, queue: %s, topic: %s\n", queue, topic)
 	}
 }
 
@@ -190,27 +190,27 @@ func send() {
 	} else if length > 0 {
 		msg = strings.Repeat("#", length)
 	} else {
-		fmt.Println("no message to send, use -m to set message")
+		log.Println("no message to send, use -m to set message")
 		return
 	}
 	resp, err := client.SendMessage(queue, msg, delay)
 	if err != nil {
-		fmt.Println("send message:", err)
+		log.Println("send message:", err)
 		return
 	}
 	if !debug {
-		fmt.Println("Response:", resp)
+		fmt.Println(resp)
 	}
 }
 
 func receive() {
 	resp, err := client.ReceiveMessage(queue, waits)
 	if err != nil {
-		fmt.Println("receive message:", err)
+		log.Println("receive message:", err)
 		return
 	}
 	if !debug {
-		fmt.Println("Response:", resp)
+		fmt.Println(resp)
 	}
 
 	if !ack || resp.Code() != 0 {
@@ -218,11 +218,11 @@ func receive() {
 	}
 	resp1, err := client.DeleteMessage(queue, resp.Handle())
 	if err != nil {
-		fmt.Println("delete message:", err)
+		log.Println("delete message:", err)
 		return
 	}
 	if !debug {
-		fmt.Println("Response:", resp1)
+		fmt.Println(resp1)
 	}
 }
 
@@ -230,16 +230,16 @@ func acknowledge() {
 	if len(handles) > 0 {
 		handle = handles[0]
 	} else {
-		fmt.Println("no handle to delete, use -handle to set handle")
+		log.Println("no handle to delete, use -handle to set handle")
 		return
 	}
 	resp, err := client.DeleteMessage(queue, handle)
 	if err != nil {
-		fmt.Println("delete message:", err)
+		log.Println("delete message:", err)
 		return
 	}
 	if !debug {
-		fmt.Println("Response:", resp)
+		fmt.Println(resp)
 	}
 }
 
@@ -254,33 +254,33 @@ func publish() {
 	}
 	resp, err := client.PublishMessage(topic, msg, route, tags)
 	if err != nil {
-		fmt.Println("publish message:", err)
+		log.Println("publish message:", err)
 		return
 	}
 	if !debug {
-		fmt.Println("Response:", resp)
+		fmt.Println(resp)
 	}
 }
 
 func sends() {
 	resp, err := client.BatchSendMessage(queue, msgs, delay)
 	if err != nil {
-		fmt.Println("batch send message:", err)
+		log.Println("batch send message:", err)
 		return
 	}
 	if !debug {
-		fmt.Println("Response:", resp)
+		fmt.Println(resp)
 	}
 }
 
 func receives() {
 	resp, err := client.BatchReceiveMessage(queue, waits, number)
 	if err != nil {
-		fmt.Println("batch receive message:", err)
+		log.Println("batch receive message:", err)
 		return
 	}
 	if !debug {
-		fmt.Println("Response:", resp)
+		fmt.Println(resp)
 	}
 
 	if !ack || resp.Code() != 0 {
@@ -296,11 +296,11 @@ func receives() {
 	if len(handles) > 0 {
 		res, err := client.BatchDeleteMessage(queue, handles)
 		if err != nil {
-			fmt.Println("batch delete message:", err)
+			log.Println("batch delete message:", err)
 			return
 		}
 		if !debug {
-			fmt.Println("batch delete result:", res)
+			fmt.Println(res)
 		}
 	}
 }
@@ -308,22 +308,22 @@ func receives() {
 func acknowledges() {
 	resp, err := client.BatchDeleteMessage(queue, handles)
 	if err != nil {
-		fmt.Println("delete messages:", err)
+		log.Println("delete messages:", err)
 		return
 	}
 	if !debug {
-		fmt.Println("Response:", resp)
+		fmt.Println(resp)
 	}
 }
 
 func publishes() {
 	resp, err := client.BatchPublishMessage(topic, route, msgs, tags)
 	if err != nil {
-		fmt.Println("publish message:", err)
+		log.Println("publish message:", err)
 		return
 	}
 	if !debug {
-		fmt.Println("Response:", resp)
+		fmt.Println(resp)
 	}
 }
 
@@ -332,19 +332,21 @@ func create() {
 	case queue != ``:
 		qr := v20200217.NewCreateCmqQueueRequest()
 		qr.QueueName = &queue
-		_, err := mgrClient.CreateCmqQueue(qr)
+		resp, err := mgrClient.CreateCmqQueue(qr)
 		if err != nil {
 			log.Printf("create queue %s error: %v", *qr.QueueName, err)
 			return
 		}
+		fmt.Println(resp.ToJsonString())
 	case topic != ``:
 		tr := v20200217.NewCreateCmqTopicRequest()
 		tr.TopicName = &topic
-		_, err := mgrClient.CreateCmqTopic(tr)
+		resp, err := mgrClient.CreateCmqTopic(tr)
 		if err != nil {
 			log.Printf("create topic %s error: %v", *tr.TopicName, err)
 			return
 		}
+		fmt.Println(resp.ToJsonString())
 	case subscribe != ``:
 		sr := v20200217.NewCreateCmqSubscribeRequest()
 		p, ncf := `queue`, `SIMPLIFIED`
@@ -353,11 +355,12 @@ func create() {
 		sr.NotifyContentFormat = &ncf
 		sr.TopicName = &topic
 		sr.Endpoint = &queue
-		_, err := mgrClient.CreateCmqSubscribe(sr)
+		resp, err := mgrClient.CreateCmqSubscribe(sr)
 		if err != nil {
 			log.Printf("create subscribe %s error: %v", *sr.SubscriptionName, err)
 			return
 		}
+		fmt.Println(resp.ToJsonString())
 	}
 }
 
@@ -366,28 +369,31 @@ func remove() {
 	case queue != ``:
 		qr := v20200217.NewDeleteCmqQueueRequest()
 		qr.QueueName = &queue
-		_, err := mgrClient.DeleteCmqQueue(qr)
+		resp, err := mgrClient.DeleteCmqQueue(qr)
 		if err != nil {
 			log.Printf("delete queue %s error: %v", *qr.QueueName, err)
 			return
 		}
+		fmt.Println(resp.ToJsonString())
 	case topic != ``:
 		tr := v20200217.NewDeleteCmqTopicRequest()
 		tr.TopicName = &topic
-		_, err := mgrClient.DeleteCmqTopic(tr)
+		resp, err := mgrClient.DeleteCmqTopic(tr)
 		if err != nil {
 			log.Printf("delete topic %s error: %v", *tr.TopicName, err)
 			return
 		}
+		fmt.Println(resp.ToJsonString())
 	case subscribe != ``:
 		sr := v20200217.NewDeleteCmqSubscribeRequest()
 		sr.SubscriptionName = &subscribe
 		sr.TopicName = &topic
-		_, err := mgrClient.DeleteCmqSubscribe(sr)
+		resp, err := mgrClient.DeleteCmqSubscribe(sr)
 		if err != nil {
 			log.Printf("delete subscribe %s error: %v", *sr.SubscriptionName, err)
 			return
 		}
+		fmt.Println(resp.ToJsonString())
 	}
 }
 
@@ -400,7 +406,7 @@ func modify() {
 			log.Printf("modify queue %s error: %v", *qr.QueueName, err)
 			return
 		}
-		log.Println(resp.ToJsonString())
+		fmt.Println(resp.ToJsonString())
 	case topic != ``:
 		tr := v20200217.NewModifyCmqTopicAttributeRequest()
 		resp, err := mgrClient.ModifyCmqTopicAttribute(tr)
@@ -408,7 +414,7 @@ func modify() {
 			log.Printf("modify queue %s error: %v", *tr.TopicName, err)
 			return
 		}
-		log.Println(resp.ToJsonString())
+		fmt.Println(resp.ToJsonString())
 	case subscribe != ``:
 		sr := v20200217.NewModifyCmqSubscriptionAttributeRequest()
 		resp, err := mgrClient.ModifyCmqSubscriptionAttribute(sr)
@@ -416,7 +422,7 @@ func modify() {
 			log.Printf("modify queue %s error: %v", *sr.SubscriptionName, err)
 			return
 		}
-		log.Println(resp.ToJsonString())
+		fmt.Println(resp.ToJsonString())
 	}
 }
 
@@ -430,7 +436,7 @@ func describe() {
 			log.Printf("describe queue %s error: %v", *qr.QueueName, err)
 			return
 		}
-		log.Println(detail.ToJsonString())
+		fmt.Println(detail.ToJsonString())
 	case topic != ``:
 		tr := v20200217.NewDescribeCmqTopicDetailRequest()
 		tr.TopicName = &topic
@@ -439,7 +445,7 @@ func describe() {
 			log.Printf("describe topic %s error: %v", *tr.TopicName, err)
 			return
 		}
-		log.Println(detail.ToJsonString())
+		fmt.Println(detail.ToJsonString())
 	case subscribe != ``:
 		sr := v20200217.NewDescribeCmqSubscriptionDetailRequest()
 		sr.TopicName = &topic
@@ -449,7 +455,7 @@ func describe() {
 			log.Printf("describe subscribe %s error: %v", *sr.SubscriptionName, err)
 			return
 		}
-		log.Println(detail.ToJsonString())
+		fmt.Println(detail.ToJsonString())
 	}
 }
 
@@ -462,20 +468,20 @@ func lists() {
 			log.Printf("describe queue %s error: %v", *qr.QueueName, err)
 			return
 		}
-		log.Println(resp.ToJsonString())
+		fmt.Println(resp.ToJsonString())
 	case `topic`:
 		tr := v20200217.NewDescribeCmqTopicsRequest()
 		resp, err := mgrClient.DescribeCmqTopics(tr)
 		if err != nil {
 			return
 		}
-		log.Println(resp.ToJsonString())
+		fmt.Println(resp.ToJsonString())
 	case `subscribe`:
 		sr := v20200217.NewDescribeSubscriptionsRequest()
 		resp, err := mgrClient.DescribeSubscriptions(sr)
 		if err != nil {
 			return
 		}
-		log.Println(resp.ToJsonString())
+		fmt.Println(resp.ToJsonString())
 	}
 }
