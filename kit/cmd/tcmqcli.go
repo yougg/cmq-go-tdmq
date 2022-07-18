@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,7 +19,21 @@ import (
 	tcmq "github.com/yougg/cmq-go-tdmq"
 )
 
-type list []string
+type (
+	Flag struct {
+		Var   any
+		Name  string
+		Value any
+		Usage string
+	}
+
+	SubCmd struct {
+		Do    func()
+		Flags []Flag
+	}
+
+	list []string
+)
 
 func (l *list) String() string {
 	return strings.Join(*l, ",")
@@ -54,7 +70,8 @@ var (
 	delay   int
 	waits   int
 
-	debug bool
+	insecure bool
+	debug    bool
 )
 
 var (
@@ -69,94 +86,126 @@ var (
 	mgrClient *v20200217.Client
 )
 
+var (
+	qFlag   = Flag{&queue, `q`, ``, `queue name`}
+	tFlag   = Flag{&topic, `t`, ``, `topic name`}
+	sFlag   = Flag{&subscribe, `s`, ``, `subscribe name`}
+	rFlag   = Flag{&route, `r`, ``, `routing key`}
+	mFlag   = Flag{&msgs, `m`, nil, `message(s), repeat '-m' 2~16 times to set multi messages`}
+	lFlag   = Flag{&length, `l`, 0, `length: send/publish message with specified length, unit: byte`}
+	tagFlag = Flag{&tags, `tag`, nil, `tag(s), repeat '-tag' multi times to set multi tags`}
+	hFlag   = Flag{&handles, `handle`, nil, `handle(s), repeat '-handle' 2~16 times to set multi handles`}
+	ackFlag = Flag{&ack, `ack`, false, `receive message(s) with ack (default false)`}
+	nFlag   = Flag{&number, `n`, 16, `sends/receives <number> messages`}
+	dFlag   = Flag{&delay, `delay`, 0, `send message(s) <delay> second (default 0)`}
+	wFlag   = Flag{&waits, `wait`, 5, `receive message(s) <wait> second`}
+	fFlag   = Flag{&filter, `f`, ``, `list filter resource type: queue/topic/subscribe`}
+	dbgFlag = Flag{&debug, "d", false, "print debug log (default false)"}
+	uFlag   = Flag{&uri, "uri", "", "request uri"}
+	rgFlag  = Flag{&region, "region", "ap-guangzhou", "region"}
+	epFlag  = Flag{&endpoint, "e", "", "endpoint"}
+
+	actionCmds = map[string]SubCmd{
+		`query`:     {Do: query, Flags: []Flag{dbgFlag, uFlag, qFlag, tFlag}},
+		`send`:      {Do: send, Flags: []Flag{dbgFlag, uFlag, qFlag, mFlag, lFlag, dFlag}},
+		`sends`:     {Do: sends, Flags: []Flag{dbgFlag, uFlag, qFlag, mFlag, lFlag, dFlag}},
+		`receive`:   {Do: receive, Flags: []Flag{dbgFlag, uFlag, qFlag, wFlag, ackFlag}},
+		`receives`:  {Do: receives, Flags: []Flag{dbgFlag, uFlag, qFlag, wFlag, nFlag, ackFlag}},
+		`delete`:    {Do: acknowledge, Flags: []Flag{dbgFlag, uFlag, qFlag, hFlag}},
+		`deletes`:   {Do: acknowledges, Flags: []Flag{dbgFlag, uFlag, qFlag, hFlag}},
+		`publish`:   {Do: publish, Flags: []Flag{dbgFlag, uFlag, tFlag, mFlag, lFlag, rFlag, tagFlag}},
+		`publishes`: {Do: publishes, Flags: []Flag{dbgFlag, uFlag, tFlag, mFlag, nFlag, lFlag, rFlag, tagFlag}},
+		`create`:    {Do: create, Flags: []Flag{rgFlag, epFlag, qFlag, tFlag, sFlag}},   // TODO replenish flags
+		`remove`:    {Do: remove, Flags: []Flag{rgFlag, epFlag, qFlag, tFlag, sFlag}},   // TODO replenish flags
+		`modify`:    {Do: modify, Flags: []Flag{rgFlag, epFlag, qFlag, tFlag, sFlag}},   // TODO replenish flags
+		`describe`:  {Do: describe, Flags: []Flag{rgFlag, epFlag, qFlag, tFlag, sFlag}}, // TODO replenish flags
+		`list`:      {Do: lists, Flags: []Flag{rgFlag, epFlag, qFlag, tFlag, sFlag, fFlag}},
+	}
+
+	flagSets = map[string]*flag.FlagSet{}
+)
+
 func init() {
-	flag.StringVar(&uri, "uri", "", "request uri")
-	flag.StringVar(&sid, "sid", "", "secret id")
-	flag.StringVar(&key, "key", "", "secret key")
+	for a, cmd := range actionCmds {
+		fs := flag.NewFlagSet(a, flag.ExitOnError)
+		for _, f := range cmd.Flags {
+			switch v := f.Var.(type) {
+			case *string:
+				fs.StringVar(v, f.Name, f.Value.(string), f.Usage)
+			case *int:
+				fs.IntVar(v, f.Name, f.Value.(int), f.Usage)
+			case *bool:
+				fs.BoolVar(v, f.Name, f.Value.(bool), f.Usage)
+			case flag.Value:
+				fs.Var(v, f.Name, f.Usage)
+			}
+		}
+		fs.BoolVar(&insecure, "insecure", false, "whether client verifies server's certificate")
+		fs.IntVar(&timeout, "timeout", 5, "client timeout in seconds")
+		fs.StringVar(&sid, "sid", "", "secret id")
+		fs.StringVar(&key, "key", "", "secret key")
+		flagSets[a] = fs
+	}
+}
 
-	flag.StringVar(&queue, "q", "", "queue name")
-	flag.StringVar(&topic, "t", "", "topic name")
-	flag.StringVar(&route, "r", "", "routing key")
-	flag.StringVar(&action, "a", "", "action: query, send, receive, delete, publish, sends, receives, deletes, publishes")
-	flag.IntVar(&length, "l", 0, "length: send/publish message with specified length")
-	flag.Var(&msgs, "m", "message(s), repeat '-m' 2~16 times to set multi messages")
-	flag.Var(&tags, "tag", "tag(s), repeat '-tag' multi times to set multi tags")
-	flag.Var(&handles, "handle", "handle(s), repeat '-handle' 2~16 times to set multi handles")
-
-	flag.BoolVar(&ack, "ack", false, "receive message(s) with ack (default false)")
-	flag.IntVar(&timeout, "timeout", 5, "client timeout")
-	flag.IntVar(&number, "n", 16, "receives <number> messages")
-	flag.IntVar(&delay, "delay", 0, "send message(s) <delay> second (default 0)")
-	flag.IntVar(&waits, "wait", 5, "receive message(s) <wait> second")
-
-	flag.StringVar(&region, "r", "ap-guangzhou", "region")
-	flag.StringVar(&endpoint, "e", "", "endpoint")
-	flag.StringVar(&subscribe, "s", "", "subscribe name")
-	flag.StringVar(&filter, "f", "", "list filter resource type: queue/topic/subscribe")
-
-	flag.BoolVar(&debug, "d", false, "print debug log (default false)")
-
+func init() {
+	flag.Usage = func() {
+		name := filepath.Base(os.Args[0])
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(),
+			"Usage of %s with sub commands:\n  %s\n\nShow sub cmd usage:\n  %s %s\n  %s %s\n\nExample:\n  %s %s\n  %s %s\n",
+			name,
+			"query,send,sends,receive,receives,delete,deletes,publish,publishes\n  create,remove,modify,describe,list",
+			name, `<subcmd> -h`, name, `<subcmd> --help`,
+			name, `send -d -uri https://cmq-gz.public.tencenttdmq.com -sid AKID... -key xxx -q test -l 10`,
+			name, `receives -uri https://cmq-gz.public.tencenttdmq.com -sid AKID... -key xxx -q test -n 5`)
+	}
 	flag.Parse()
+
+	if len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], `-`) {
+		action = os.Args[1]
+	}
+	if cmd, ok := flagSets[action]; ok {
+		err := cmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Println(err)
+			cmd.Usage()
+		}
+	} else {
+		log.Fatalln("invalid action:", action)
+	}
 }
 
 func main() {
 	var err error
-	client, err = tcmq.NewClient(uri, sid, key, time.Duration(timeout)*time.Second)
-	if err != nil {
-		fmt.Println("new TDMQ-CMQ client", err)
-		return
-	}
-	client.Debug = debug
-
-	// 管控API文档: https://cloud.tencent.com/document/product/1496/62819
-	credential := common.NewCredential(sid, key)
-	prof := profile.NewClientProfile()
-	if endpoint != `` {
-		prof.HttpProfile.Endpoint = endpoint // 在/etc/hosts中加入映射: 9.223.101.94 tdmq.ap-guangzhou.tencentyun.com
-	}
-	mgrClient, err = v20200217.NewClient(credential, region, prof)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	mgrClient.WithHttpTransport(&http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-	})
-
 	switch action {
-	case `query`:
-		query()
-	case `send`:
-		send()
-	case `sends`:
-		sends()
-	case `receive`:
-		receive()
-	case `receives`:
-		receives()
-	case `delete`:
-		acknowledge()
-	case `deletes`:
-		acknowledges()
-	case `publish`:
-		publish()
-	case `publishes`:
-		publishes()
-	case `create`:
-		create()
-	case `remove`:
-		remove()
-	case `modify`:
-		modify()
-	case `describe`:
-		describe()
-	case `list`:
-		lists()
-	default:
-		fmt.Println("invalid action:", action)
+	case `query`, `send`, `sends`, `receive`, `receives`, `delete`, `deletes`, `publish`, `publishes`:
+		tcmq.InsecureSkipVerify = insecure
+		client, err = tcmq.NewClient(uri, sid, key, time.Duration(timeout)*time.Second)
+		if err != nil {
+			log.Println("new TCMQ client", err)
+			return
+		}
+		client.Debug = debug
+	case `create`, `remove`, `modify`, `describe`, `list`:
+		// 管控API文档: https://cloud.tencent.com/document/product/1496/62819
+		prof := profile.NewClientProfile()
+		prof.HttpProfile.ReqTimeout = timeout
+		if endpoint != `` {
+			prof.HttpProfile.Endpoint = endpoint
+		}
+		mgrClient, err = v20200217.NewClient(common.NewCredential(sid, key), region, prof)
+		if err != nil {
+			log.Println("new TCMQ manager client", err)
+			return
+		}
+		mgrClient.WithHttpTransport(&http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: insecure,
+			},
+		})
 	}
+
+	actionCmds[action].Do()
 }
 
 func query() {
