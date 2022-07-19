@@ -18,6 +18,10 @@ var (
 )
 
 var (
+	InsecureSkipVerify bool
+)
+
+var (
 	nameReg   = regexp.MustCompile(`^[a-zA-Z][a-zA-Z\d_-]{0,63}$`)
 	handleReg = regexp.MustCompile(`^[1-9]\d{0,79}$`)
 )

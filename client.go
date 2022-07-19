@@ -56,7 +56,7 @@ func NewClient(uri, secretId, secretKey string, t time.Duration, keepalive ...bo
 			Transport: &http.Transport{
 				DisableKeepAlives: shortLive,
 				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
+					InsecureSkipVerify: InsecureSkipVerify,
 				},
 			},
 			Timeout: t,
