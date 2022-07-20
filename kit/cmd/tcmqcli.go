@@ -100,26 +100,22 @@ var (
 	dFlag   = Flag{&delay, `delay`, 0, `send message(s) <delay> second (default 0)`}
 	wFlag   = Flag{&waits, `wait`, 5, `receive message(s) <wait> second`}
 	fFlag   = Flag{&filter, `f`, ``, `list filter resource type: queue/topic/subscribe`}
-	dbgFlag = Flag{&debug, "d", false, "print debug log (default false)"}
-	uFlag   = Flag{&uri, "uri", "", "request uri"}
-	rgFlag  = Flag{&region, "region", "ap-guangzhou", "region"}
-	epFlag  = Flag{&endpoint, "e", "", "endpoint"}
 
 	actionCmds = map[string]SubCmd{
-		`query`:     {Do: query, Flags: []Flag{dbgFlag, uFlag, qFlag, tFlag}},
-		`send`:      {Do: send, Flags: []Flag{dbgFlag, uFlag, qFlag, mFlag, lFlag, dFlag}},
-		`sends`:     {Do: sends, Flags: []Flag{dbgFlag, uFlag, qFlag, mFlag, lFlag, dFlag}},
-		`receive`:   {Do: receive, Flags: []Flag{dbgFlag, uFlag, qFlag, wFlag, ackFlag}},
-		`receives`:  {Do: receives, Flags: []Flag{dbgFlag, uFlag, qFlag, wFlag, nFlag, ackFlag}},
-		`delete`:    {Do: acknowledge, Flags: []Flag{dbgFlag, uFlag, qFlag, hFlag}},
-		`deletes`:   {Do: acknowledges, Flags: []Flag{dbgFlag, uFlag, qFlag, hFlag}},
-		`publish`:   {Do: publish, Flags: []Flag{dbgFlag, uFlag, tFlag, mFlag, lFlag, rFlag, tagFlag}},
-		`publishes`: {Do: publishes, Flags: []Flag{dbgFlag, uFlag, tFlag, mFlag, nFlag, lFlag, rFlag, tagFlag}},
-		`create`:    {Do: create, Flags: []Flag{rgFlag, epFlag, qFlag, tFlag, sFlag}},   // TODO replenish flags
-		`remove`:    {Do: remove, Flags: []Flag{rgFlag, epFlag, qFlag, tFlag, sFlag}},   // TODO replenish flags
-		`modify`:    {Do: modify, Flags: []Flag{rgFlag, epFlag, qFlag, tFlag, sFlag}},   // TODO replenish flags
-		`describe`:  {Do: describe, Flags: []Flag{rgFlag, epFlag, qFlag, tFlag, sFlag}}, // TODO replenish flags
-		`list`:      {Do: lists, Flags: []Flag{rgFlag, epFlag, qFlag, tFlag, sFlag, fFlag}},
+		`query`:     {Do: query, Flags: []Flag{qFlag, tFlag}},
+		`send`:      {Do: send, Flags: []Flag{qFlag, mFlag, lFlag, dFlag}},
+		`sends`:     {Do: sends, Flags: []Flag{qFlag, mFlag, lFlag, dFlag}},
+		`receive`:   {Do: receive, Flags: []Flag{qFlag, wFlag, ackFlag}},
+		`receives`:  {Do: receives, Flags: []Flag{qFlag, wFlag, nFlag, ackFlag}},
+		`delete`:    {Do: acknowledge, Flags: []Flag{qFlag, hFlag}},
+		`deletes`:   {Do: acknowledges, Flags: []Flag{qFlag, hFlag}},
+		`publish`:   {Do: publish, Flags: []Flag{tFlag, mFlag, lFlag, rFlag, tagFlag}},
+		`publishes`: {Do: publishes, Flags: []Flag{tFlag, mFlag, nFlag, lFlag, rFlag, tagFlag}},
+		`create`:    {Do: create, Flags: []Flag{qFlag, tFlag, sFlag}},   // TODO replenish flags
+		`remove`:    {Do: remove, Flags: []Flag{qFlag, tFlag, sFlag}},   // TODO replenish flags
+		`modify`:    {Do: modify, Flags: []Flag{qFlag, tFlag, sFlag}},   // TODO replenish flags
+		`describe`:  {Do: describe, Flags: []Flag{qFlag, tFlag, sFlag}}, // TODO replenish flags
+		`list`:      {Do: lists, Flags: []Flag{qFlag, tFlag, sFlag, fFlag}},
 	}
 
 	flagSets = map[string]*flag.FlagSet{}
@@ -140,10 +136,6 @@ func init() {
 				fs.Var(v, f.Name, f.Usage)
 			}
 		}
-		fs.BoolVar(&insecure, "insecure", false, "whether client verifies server's certificate")
-		fs.IntVar(&timeout, "timeout", 5, "client timeout in seconds")
-		fs.StringVar(&sid, "sid", "", "secret id")
-		fs.StringVar(&key, "key", "", "secret key")
 		flagSets[a] = fs
 	}
 }
@@ -151,21 +143,78 @@ func init() {
 func init() {
 	flag.Usage = func() {
 		name := filepath.Base(os.Args[0])
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(),
-			"Usage of %s with sub commands:\n  %s\n\nShow sub cmd usage:\n  %s %s\n  %s %s\n\nExample:\n  %s %s\n  %s %s\n",
-			name,
-			"query,send,sends,receive,receives,delete,deletes,publish,publishes\n  create,remove,modify,describe,list",
-			name, `<subcmd> -h`, name, `<subcmd> --help`,
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s with sub commands:\n  %s\n\n", name,
+			"query,send,sends,receive,receives,delete,deletes,publish,publishes\n  create,remove,modify,describe,list")
+		_, _ = fmt.Fprintln(flag.CommandLine.Output(), "Common flags:")
+		flag.PrintDefaults() // TODO
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "\nShow sub cmd usage:\n  %s %s\n  %s %s\n\n",
+			name, `<subcmd> -h`, name, `<subcmd> --help`)
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Example:\n  %s %s\n  %s %s\n",
 			name, `send -d -uri https://cmq-gz.public.tencenttdmq.com -sid AKID... -key xxx -q test -l 10`,
 			name, `receives -uri https://cmq-gz.public.tencenttdmq.com -sid AKID... -key xxx -q test -n 5`)
 	}
-	flag.Parse()
 
-	if len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], `-`) {
+	nArg := len(os.Args)
+	args := map[string]any{}
+	for i := 0; i < nArg; i++ {
+		var k string
+		if s := os.Args[i]; strings.HasPrefix(s, `-`) {
+			k = s
+		}
+		if len(k) == 0 {
+			continue
+		} else if strings.Contains(k, `=`) {
+			kv := strings.SplitN(k, `=`, 2)
+			args[kv[0]] = kv[1]
+		} else if i+1 == nArg {
+			args[k] = nil
+		} else if i++; i < nArg {
+			if v := os.Args[i]; strings.HasPrefix(v, `-`) {
+				i--
+				args[k] = nil
+			} else {
+				args[k] = v
+			}
+		}
+	}
+
+	if nArg > 1 && !strings.HasPrefix(os.Args[1], `-`) {
 		action = os.Args[1]
 	}
+	//switch action {
+	//case `query`, `send`, `sends`, `receive`, `receives`, `delete`, `deletes`, `publish`, `publishes`:
+	flag.BoolVar(&debug, "d", false, "print debug log (default false)")
+	flag.StringVar(&uri, "uri", "", "request uri for message action")
+	//case `create`, `remove`, `modify`, `describe`, `list`:
+	flag.StringVar(&region, "region", "ap-guangzhou", "region for manage action")
+	flag.StringVar(&endpoint, "e", "", "endpoint for manage action")
+	//}
+
+	flag.BoolVar(&insecure, "insecure", false, "whether client skip verifies server's certificate (default false)")
+	flag.IntVar(&timeout, "timeout", 5, "client timeout in seconds")
+	flag.StringVar(&sid, "sid", "", "secret id")
+	flag.StringVar(&key, "key", "", "secret key")
+
+	flag.Parse()
+
+	delete(args, `-insecure`)
+	delete(args, `-timeout`)
+	delete(args, `-sid`)
+	delete(args, `-key`)
+	delete(args, `-d`)
+	delete(args, `-uri`)
+	delete(args, `-region`)
+	delete(args, `-e`)
+	var subArgs []string
+	for k, v := range args {
+		subArgs = append(subArgs, k)
+		if v != nil {
+			subArgs = append(subArgs, fmt.Sprint(v))
+		}
+	}
+
 	if cmd, ok := flagSets[action]; ok {
-		err := cmd.Parse(os.Args[2:])
+		err := cmd.Parse(subArgs)
 		if err != nil {
 			log.Println(err)
 			cmd.Usage()
