@@ -3,7 +3,6 @@ package tdmq
 import (
 	"errors"
 	"fmt"
-	"regexp"
 )
 
 type (
