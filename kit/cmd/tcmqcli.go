@@ -484,6 +484,20 @@ func publishes() {
 
 func create() {
 	switch {
+	case subscribe != ``:
+		sr := v20200217.NewCreateCmqSubscribeRequest()
+		p, ncf := `queue`, `SIMPLIFIED`
+		sr.SubscriptionName = &subscribe
+		sr.Protocol = &p
+		sr.NotifyContentFormat = &ncf
+		sr.TopicName = &topic
+		sr.Endpoint = &queue
+		resp, err := mgrClient.CreateCmqSubscribe(sr)
+		if err != nil {
+			log.Printf("create subscribe %s error: %v", *sr.SubscriptionName, err)
+			return
+		}
+		fmt.Println(resp.ToJsonString())
 	case queue != ``:
 		qr := v20200217.NewCreateCmqQueueRequest()
 		qr.QueueName = &queue
@@ -502,25 +516,21 @@ func create() {
 			return
 		}
 		fmt.Println(resp.ToJsonString())
-	case subscribe != ``:
-		sr := v20200217.NewCreateCmqSubscribeRequest()
-		p, ncf := `queue`, `SIMPLIFIED`
-		sr.SubscriptionName = &subscribe
-		sr.Protocol = &p
-		sr.NotifyContentFormat = &ncf
-		sr.TopicName = &topic
-		sr.Endpoint = &queue
-		resp, err := mgrClient.CreateCmqSubscribe(sr)
-		if err != nil {
-			log.Printf("create subscribe %s error: %v", *sr.SubscriptionName, err)
-			return
-		}
-		fmt.Println(resp.ToJsonString())
 	}
 }
 
 func remove() {
 	switch {
+	case subscribe != ``:
+		sr := v20200217.NewDeleteCmqSubscribeRequest()
+		sr.SubscriptionName = &subscribe
+		sr.TopicName = &topic
+		resp, err := mgrClient.DeleteCmqSubscribe(sr)
+		if err != nil {
+			log.Printf("delete subscribe %s error: %v", *sr.SubscriptionName, err)
+			return
+		}
+		fmt.Println(resp.ToJsonString())
 	case queue != ``:
 		qr := v20200217.NewDeleteCmqQueueRequest()
 		qr.QueueName = &queue
@@ -539,21 +549,19 @@ func remove() {
 			return
 		}
 		fmt.Println(resp.ToJsonString())
-	case subscribe != ``:
-		sr := v20200217.NewDeleteCmqSubscribeRequest()
-		sr.SubscriptionName = &subscribe
-		sr.TopicName = &topic
-		resp, err := mgrClient.DeleteCmqSubscribe(sr)
-		if err != nil {
-			log.Printf("delete subscribe %s error: %v", *sr.SubscriptionName, err)
-			return
-		}
-		fmt.Println(resp.ToJsonString())
 	}
 }
 
 func modify() {
 	switch {
+	case subscribe != ``:
+		sr := v20200217.NewModifyCmqSubscriptionAttributeRequest()
+		resp, err := mgrClient.ModifyCmqSubscriptionAttribute(sr)
+		if err != nil {
+			log.Printf("modify queue %s error: %v", *sr.SubscriptionName, err)
+			return
+		}
+		fmt.Println(resp.ToJsonString())
 	case queue != ``:
 		qr := v20200217.NewModifyCmqQueueAttributeRequest()
 		resp, err := mgrClient.ModifyCmqQueueAttribute(qr)
@@ -570,19 +578,21 @@ func modify() {
 			return
 		}
 		fmt.Println(resp.ToJsonString())
-	case subscribe != ``:
-		sr := v20200217.NewModifyCmqSubscriptionAttributeRequest()
-		resp, err := mgrClient.ModifyCmqSubscriptionAttribute(sr)
-		if err != nil {
-			log.Printf("modify queue %s error: %v", *sr.SubscriptionName, err)
-			return
-		}
-		fmt.Println(resp.ToJsonString())
 	}
 }
 
 func describe() {
 	switch {
+	case subscribe != ``:
+		sr := v20200217.NewDescribeCmqSubscriptionDetailRequest()
+		sr.TopicName = &topic
+		sr.SubscriptionName = &subscribe
+		detail, err := mgrClient.DescribeCmqSubscriptionDetail(sr)
+		if err != nil {
+			log.Printf("describe subscribe %s error: %v", *sr.SubscriptionName, err)
+			return
+		}
+		fmt.Println(detail.ToJsonString())
 	case queue != ``:
 		qr := v20200217.NewDescribeCmqQueueDetailRequest()
 		qr.QueueName = &queue
@@ -601,21 +611,18 @@ func describe() {
 			return
 		}
 		fmt.Println(detail.ToJsonString())
-	case subscribe != ``:
-		sr := v20200217.NewDescribeCmqSubscriptionDetailRequest()
-		sr.TopicName = &topic
-		sr.SubscriptionName = &subscribe
-		detail, err := mgrClient.DescribeCmqSubscriptionDetail(sr)
-		if err != nil {
-			log.Printf("describe subscribe %s error: %v", *sr.SubscriptionName, err)
-			return
-		}
-		fmt.Println(detail.ToJsonString())
 	}
 }
 
 func lists() {
 	switch filter {
+	case `subscribe`:
+		sr := v20200217.NewDescribeSubscriptionsRequest()
+		resp, err := mgrClient.DescribeSubscriptions(sr)
+		if err != nil {
+			return
+		}
+		fmt.Println(resp.ToJsonString())
 	case `queue`:
 		qr := v20200217.NewDescribeCmqQueuesRequest()
 		resp, err := mgrClient.DescribeCmqQueues(qr)
@@ -627,13 +634,6 @@ func lists() {
 	case `topic`:
 		tr := v20200217.NewDescribeCmqTopicsRequest()
 		resp, err := mgrClient.DescribeCmqTopics(tr)
-		if err != nil {
-			return
-		}
-		fmt.Println(resp.ToJsonString())
-	case `subscribe`:
-		sr := v20200217.NewDescribeSubscriptionsRequest()
-		resp, err := mgrClient.DescribeSubscriptions(sr)
 		if err != nil {
 			return
 		}
