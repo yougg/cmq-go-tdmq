@@ -4,15 +4,17 @@ package main
 
 import (
 	"crypto/tls"
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 	"time"
+	"unsafe"
 
+	"github.com/integrii/flaggy"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
 	v20200217 "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tdmq/v20200217"
@@ -21,27 +23,90 @@ import (
 
 type (
 	Flag struct {
-		Var   any
-		Name  string
-		Value any
-		Usage string
+		Var      any
+		Name     string
+		FullName string
+		Value    any
+		Usage    string
 	}
 
 	SubCmd struct {
-		Do    func()
-		Flags []Flag
+		Name    string
+		Do      func()
+		Desc    string
+		Flags   []Flag
+		subCmds []SubCmd
 	}
 
-	list []string
+	Queue struct {
+		v20200217.CreateCmqQueueRequest
+	}
+	Topic struct {
+		RoutingKey string
+		v20200217.CreateCmqTopicRequest
+	}
+	Subscribe struct {
+		Tag []string
+		v20200217.CreateCmqSubscribeRequest
+	}
 )
 
-func (l *list) String() string {
-	return strings.Join(*l, ",")
-}
+const (
+	lanUrl = `http://%s.mqadapter.cmq.tencentyun.com`
+	wanUrl = `https://cmq-%s.public.tencenttdmq.com`
+)
 
-func (l *list) Set(s string) error {
-	*l = append(*l, s)
-	return nil
+var regions = map[string]string{
+	"gz":      "ap-guangzhou",
+	"sh":      "ap-shanghai",
+	"hk":      "ap-hongkong",
+	"ca":      "na-toronto",
+	"shjr":    "ap-shanghai-fsi",
+	"bj":      "ap-beijing",
+	"sg":      "ap-singapore",
+	"szjr":    "ap-shenzhen-fsi",
+	"gzopen":  "ap-guangzhou-open",
+	"usw":     "na-siliconvalley",
+	"cd":      "ap-chengdu",
+	"de":      "eu-frankfurt",
+	"kr":      "ap-seoul",
+	"cq":      "ap-chongqing",
+	"in":      "ap-mumbai",
+	"use":     "na-ashburn",
+	"th":      "ap-bangkok",
+	"ru":      "eu-moscow",
+	"jp":      "ap-tokyo",
+	"jnec":    "ap-jinan-ec",
+	"hzec":    "ap-hangzhou-ec",
+	"nj":      "ap-nanjing",
+	"fzec":    "ap-fuzhou-ec",
+	"whec":    "ap-wuhan-ec",
+	"dub":     "me-dubai",
+	"la":      "na-losangeles",
+	"sl":      "sl-saopaulo",
+	"syd":     "au-sydney",
+	"tj":      "ap-beijing-z1",
+	"tsn":     "ap-tianjin",
+	"szx":     "ap-shenzhen",
+	"tpe":     "ap-taipei",
+	"bjjr":    "ap-beijing-fsi",
+	"others":  "ap-others",
+	"csec":    "ap-changsha-ec",
+	"sjwec":   "ap-shijiazhuang-ec",
+	"qy":      "ap-qingyuan",
+	"xbec":    "ap-xibei-ec",
+	"hfeec":   "ap-hefei-ec",
+	"sheec":   "ap-shenyang-ec",
+	"xiyec":   "ap-xian-ec",
+	"cgoec":   "ap-zhengzhou-ec",
+	"jkt":     "ap-jakarta",
+	"sao":     "sa-saopaulo",
+	"qyxa":    "ap-qingyuan-xinan",
+	"szsycft": "ap-shenzhen-sycft",
+	"gy":      "ap-guiyang",
+	"shadc":   "ap-shanghai-adc",
+	"szjrtce": "ap-shanghai-fsitce",
+	"shjrtce": "ap-shenzhen-fsitce",
 }
 
 var (
@@ -49,36 +114,32 @@ var (
 	sid string
 	key string
 
-	queue     string
-	topic     string
-	subscribe string
-	action    string
+	action string
 
-	msg    string
-	msgs   list
+	msgs   []string
 	length int
 
-	handle  string
-	handles list
+	handles []string
 
-	tags  list
+	tags  []string
 	route string
 
 	ack     bool
-	timeout int
-	number  int
+	timeout = 5
+	number  = 1
 	delay   int
-	waits   int
+	waits   = 3
 
 	insecure bool
 	debug    bool
-)
 
-var (
+	network  = `public`
 	region   string
 	endpoint string
 
-	filter string
+	limit  uint64
+	offset uint64
+	filter = `queue`
 )
 
 var (
@@ -87,147 +148,227 @@ var (
 )
 
 var (
-	qFlag   = Flag{&queue, `q`, ``, `queue name`}
-	tFlag   = Flag{&topic, `t`, ``, `topic name`}
-	sFlag   = Flag{&subscribe, `s`, ``, `subscribe name`}
-	rFlag   = Flag{&route, `r`, ``, `routing key`}
-	mFlag   = Flag{&msgs, `m`, nil, `message(s), repeat '-m' 2~16 times to set multi messages`}
-	lFlag   = Flag{&length, `l`, 0, `length: send/publish message with specified length, unit: byte`}
-	tagFlag = Flag{&tags, `tag`, nil, `tag(s), repeat '-tag' multi times to set multi tags`}
-	hFlag   = Flag{&handles, `handle`, nil, `handle(s), repeat '-handle' 2~16 times to set multi handles`}
-	ackFlag = Flag{&ack, `ack`, false, `receive message(s) with ack (default false)`}
-	nFlag   = Flag{&number, `n`, 16, `sends/receives <number> messages`}
-	dFlag   = Flag{&delay, `delay`, 0, `send message(s) <delay> second (default 0)`}
-	wFlag   = Flag{&waits, `wait`, 5, `receive message(s) <wait> second`}
-	fFlag   = Flag{&filter, `f`, ``, `list filter resource type: queue/topic/subscribe`}
-
-	actionCmds = map[string]SubCmd{
-		`query`:     {Do: query, Flags: []Flag{qFlag, tFlag}},
-		`send`:      {Do: send, Flags: []Flag{qFlag, mFlag, lFlag, dFlag}},
-		`sends`:     {Do: sends, Flags: []Flag{qFlag, mFlag, lFlag, dFlag}},
-		`receive`:   {Do: receive, Flags: []Flag{qFlag, wFlag, ackFlag}},
-		`receives`:  {Do: receives, Flags: []Flag{qFlag, wFlag, nFlag, ackFlag}},
-		`delete`:    {Do: acknowledge, Flags: []Flag{qFlag, hFlag}},
-		`deletes`:   {Do: acknowledges, Flags: []Flag{qFlag, hFlag}},
-		`publish`:   {Do: publish, Flags: []Flag{tFlag, mFlag, lFlag, rFlag, tagFlag}},
-		`publishes`: {Do: publishes, Flags: []Flag{tFlag, mFlag, nFlag, lFlag, rFlag, tagFlag}},
-		`create`:    {Do: create, Flags: []Flag{qFlag, tFlag, sFlag}},   // TODO replenish flags
-		`remove`:    {Do: remove, Flags: []Flag{qFlag, tFlag, sFlag}},   // TODO replenish flags
-		`modify`:    {Do: modify, Flags: []Flag{qFlag, tFlag, sFlag}},   // TODO replenish flags
-		`describe`:  {Do: describe, Flags: []Flag{qFlag, tFlag, sFlag}}, // TODO replenish flags
-		`list`:      {Do: lists, Flags: []Flag{qFlag, tFlag, sFlag, fFlag}},
+	q = Queue{
+		CreateCmqQueueRequest: v20200217.CreateCmqQueueRequest{
+			QueueName:           new(string),
+			MaxMsgHeapNum:       new(uint64),
+			PollingWaitSeconds:  new(uint64),
+			VisibilityTimeout:   new(uint64),
+			MaxMsgSize:          new(uint64),
+			MsgRetentionSeconds: new(uint64),
+			RewindSeconds:       new(uint64),
+			Transaction:         new(uint64),
+			FirstQueryInterval:  new(uint64),
+			MaxQueryCount:       new(uint64),
+			DeadLetterQueueName: new(string),
+			Policy:              new(uint64),
+			MaxReceiveCount:     new(uint64),
+			MaxTimeToLive:       new(uint64),
+			Trace:               new(bool),
+			RetentionSizeInMB:   new(uint64),
+			Tags:                make([]*v20200217.Tag, 0),
+		},
+	}
+	t = Topic{
+		CreateCmqTopicRequest: v20200217.CreateCmqTopicRequest{
+			TopicName:           new(string),
+			MaxMsgSize:          new(uint64),
+			FilterType:          new(uint64),
+			MsgRetentionSeconds: new(uint64),
+			Trace:               new(bool),
+			Tags:                make([]*v20200217.Tag, 0),
+		},
+	}
+	s = Subscribe{
+		Tag: make([]string, 0),
+		CreateCmqSubscribeRequest: v20200217.CreateCmqSubscribeRequest{
+			TopicName:           new(string),
+			SubscriptionName:    new(string),
+			Protocol:            new(string),
+			Endpoint:            new(string),
+			NotifyStrategy:      new(string),
+			FilterTag:           make([]*string, 0),
+			BindingKey:          make([]*string, 0),
+			NotifyContentFormat: new(string),
+		},
 	}
 
-	flagSets = map[string]*flag.FlagSet{}
+	qFlag   = Flag{q.QueueName, `q`, `queue`, ``, `queue name`}
+	tFlag   = Flag{t.TopicName, `t`, `topic`, ``, `topic name`}
+	sFlag   = Flag{s.SubscriptionName, `s`, `subscribe`, ``, `subscribe name`}
+	rFlag   = Flag{&t.RoutingKey, `r`, `routingKey`, ``, `routing key`}
+	mFlag   = Flag{msgs, `m`, `msg`, nil, `message(s), repeat the flag 2~16 times to set multi messages`}
+	lFlag   = Flag{&length, `l`, `length`, 0, `send/publish message(s) with specified length, unit: byte`}
+	tagFlag = Flag{s.Tag, `g`, `tag`, nil, `tag(s), repeat the flag multi times to set multi tags`}
+	hFlag   = Flag{handles, `n`, `handle`, nil, `handle(s), repeat the flag 2~16 times to set multi handles`}
+	ackFlag = Flag{&ack, `r`, `ack`, false, `receive message(s) with ack`}
+	nFlag   = Flag{&number, `n`, `number`, 1, `send/receive/publish <number> message(s) with special <length>`}
+	dFlag   = Flag{&delay, `y`, `delay`, 0, `send message(s) <delay> second`}
+	wFlag   = Flag{&waits, `w`, `wait`, 5, `receive message(s) <wait> seconds`}
+	fFlag   = Flag{&filter, `f`, `filter`, ``, `list filter resource type: queue/topic/subscribe/region`}
+	limitF  = Flag{&limit, `l`, `limit`, 0, `limit query page size`}
+	offsetF = Flag{&offset, `o`, `offset`, 0, `begin index of query page`}
+
+	queueFlags = []Flag{
+		{q.QueueName, `n`, `name`, ``, `queue name`},
+		{q.MaxMsgHeapNum, ``, `MaxMsgHeapNum`, 1000000, `max message heap number [1000000~1000000000]`},
+		{q.PollingWaitSeconds, ``, `PollingWaitSeconds`, 0, `polling wait seconds [0~30]`},
+		{q.VisibilityTimeout, ``, `VisibilityTimeout`, 30, `visibility timeout in seconds [0~43200]`},
+		{q.MaxMsgSize, ``, `MaxMsgSize`, 65536, `max message size [1024~65536]`},
+		{q.MsgRetentionSeconds, ``, `MsgRetentionSeconds`, 3600, `message retention seconds [30~43200]`},
+		{q.RewindSeconds, ``, `RewindSeconds`, 0, `rewind seconds [0~1296000]`},
+		{q.Transaction, ``, `Transaction`, 0, `transaction, 0:disable, 1:enable`},
+		{q.FirstQueryInterval, ``, `FirstQueryInterval`, 0, `first query interval`},
+		{q.MaxQueryCount, ``, `MaxQueryCount`, 0, `max query count`},
+		{q.DeadLetterQueueName, ``, `DeadLetterQueueName`, ``, `dead letter queue name`},
+		{q.Policy, ``, `Policy`, 1, `dead letter policy, 0:not acked after consume many times, 1:TTL expired`},
+		{q.MaxReceiveCount, ``, `MaxReceiveCount`, 1, `max receive count [1~1000]`},
+		{q.MaxTimeToLive, ``, `MaxTimeToLive`, 300, `max time to live [300~43200]`},
+		{q.Trace, ``, `Trace`, false, `trace message, true:enable, false:disable`},
+		{q.RetentionSizeInMB, ``, `RetentionSizeInMB`, 0, `retention size in MB [10240~512000]`},
+	}
+	topicFlags = []Flag{
+		{t.TopicName, `n`, `name`, ``, `topic name`},
+		{t.MaxMsgSize, ``, `MaxMsgSize`, 65536, `max message size [1024~65536]`},
+		{t.FilterType, ``, `FilterType`, 1, `subscribe message filter type, 1:tag, 2:route`},
+		{t.MsgRetentionSeconds, ``, `MsgRetentionSeconds`, 86400, `message retention seconds [60~86400]`},
+		{t.Trace, ``, `Trace`, false, `trace message, true:enable, false:disable`},
+	}
+	subscribeFlags = []Flag{
+		{s.SubscriptionName, `n`, `name`, ``, `subscribe name`},
+		{s.TopicName, ``, `TopicName`, ``, `topic name`},
+		{s.Protocol, ``, `Protocol`, ``, `deliver protocol, [http,queue]`},
+		{s.Endpoint, ``, `Endpoint`, ``, `endpoint of deliver protocol, http url or queue name`},
+		{s.NotifyStrategy, ``, `NotifyStrategy`, `2`, `deliver notify strategy, 1:BACKOFF_RETRY, 2:EXPONENTIAL_DECAY_RETRY`},
+		{s.FilterTag, ``, `FilterTag`, nil, `message filter tag, max 5 count and each one max 16 chars`},
+		{s.BindingKey, ``, `BindingKey`, nil, `message binding key, max 5 count and each one max 64 chars`},
+		{s.NotifyContentFormat, ``, `NotifyContentFormat`, `2`, `notify content format, 1:JSON, 2:SIMPLIFIED`},
+	}
+
+	actionCmds = []SubCmd{
+		{Name: `send`, Do: send, Desc: "send message(s) to queue", Flags: []Flag{qFlag, mFlag, lFlag, dFlag}},
+		{Name: `receive`, Do: receive, Desc: "receive message(s) from queue", Flags: []Flag{qFlag, wFlag, nFlag, ackFlag}},
+		{Name: `delete`, Do: acknowledge, Desc: "delete message by handle(s)", Flags: []Flag{qFlag, hFlag}},
+		{Name: `publish`, Do: publish, Desc: "publish message(s) to topic", Flags: []Flag{tFlag, mFlag, nFlag, lFlag, rFlag, tagFlag}},
+		{Name: `query`, Do: query, Desc: "query topic/queue route for tcp", Flags: []Flag{qFlag, tFlag}},
+		{Name: ` `},
+		{Name: `create`, Desc: "create queue/topic/subscribe", subCmds: []SubCmd{
+			{Name: `queue`, Do: createQ, Desc: "create queue", Flags: queueFlags},
+			{Name: `topic`, Do: createT, Desc: "create topic", Flags: topicFlags},
+			{Name: `subscribe`, Do: createS, Desc: "create subscribe", Flags: subscribeFlags},
+		}},
+		{Name: `remove`, Do: remove, Desc: "remove queue/topic/subscribe", Flags: []Flag{sFlag, qFlag, tFlag}},
+		{Name: `modify`, Desc: "modify queue/topic/subscribe", subCmds: []SubCmd{
+			{Name: `queue`, Do: modifyQ, Desc: "modify queue", Flags: queueFlags},
+			{Name: `topic`, Do: modifyT, Desc: "modify topic", Flags: topicFlags},
+			{Name: `subscribe`, Do: modifyS, Desc: "modify subscribe", Flags: subscribeFlags},
+		}},
+		{Name: `describe`, Do: describe, Desc: "describe queue/topic/subscribe", Flags: []Flag{sFlag, qFlag, tFlag, fFlag, limitF, offsetF}},
+		{Name: `list`, Do: lists, Desc: "list queue/topic/subscribe/region", Flags: []Flag{sFlag, qFlag, tFlag, fFlag, limitF, offsetF}},
+	}
 )
 
 func init() {
-	for a, cmd := range actionCmds {
-		fs := flag.NewFlagSet(a, flag.ExitOnError)
-		for _, f := range cmd.Flags {
+	flaggy.SetVersion(`v0.1.3`)
+	flaggy.SetDescription(`TDMQ-CMQ command line tool`)
+	flagFn := func(subCmd *flaggy.Subcommand, flags []Flag) {
+		for _, f := range flags {
+			// fmt.Printf("name: %#v, var: %#v, value: %#v\n", f.FullName, f.Var, f.Value)
+			isNilValue := f.Value == nil || (*[2]uintptr)(unsafe.Pointer(&f.Value))[1] == 0
 			switch v := f.Var.(type) {
 			case *string:
-				fs.StringVar(v, f.Name, f.Value.(string), f.Usage)
+				if isNilValue {
+					f.Value = new(string)
+				}
+				*v = f.Value.(string)
+				subCmd.String(v, f.Name, f.FullName, f.Usage)
 			case *int:
-				fs.IntVar(v, f.Name, f.Value.(int), f.Usage)
+				if isNilValue {
+					f.Value = new(int)
+				}
+				*v = f.Value.(int)
+				subCmd.Int(v, f.Name, f.FullName, f.Usage)
+			case *uint64:
+				if isNilValue {
+					*v = uint64(0)
+				} else {
+					*v = uint64(f.Value.(int))
+				}
+				subCmd.UInt64(v, f.Name, f.FullName, f.Usage)
 			case *bool:
-				fs.BoolVar(v, f.Name, f.Value.(bool), f.Usage)
-			case flag.Value:
-				fs.Var(v, f.Name, f.Usage)
-			}
-		}
-		flagSets[a] = fs
-	}
-}
-
-func init() {
-	flag.Usage = func() {
-		name := filepath.Base(os.Args[0])
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s with sub commands:\n  %s\n\n", name,
-			"query,send,sends,receive,receives,delete,deletes,publish,publishes\n  create,remove,modify,describe,list")
-		_, _ = fmt.Fprintln(flag.CommandLine.Output(), "Common flags:")
-		flag.PrintDefaults() // TODO
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "\nShow sub cmd usage:\n  %s %s\n  %s %s\n\n",
-			name, `<subcmd> -h`, name, `<subcmd> --help`)
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Example:\n  %s %s\n  %s %s\n",
-			name, `send -d -uri https://cmq-gz.public.tencenttdmq.com -sid AKID... -key xxx -q test -l 10`,
-			name, `receives -uri https://cmq-gz.public.tencenttdmq.com -sid AKID... -key xxx -q test -n 5`)
-	}
-
-	nArg := len(os.Args)
-	args := map[string]any{}
-	for i := 0; i < nArg; i++ {
-		var k string
-		if s := os.Args[i]; strings.HasPrefix(s, `-`) {
-			k = s
-		}
-		if len(k) == 0 {
-			continue
-		} else if strings.Contains(k, `=`) {
-			kv := strings.SplitN(k, `=`, 2)
-			args[kv[0]] = kv[1]
-		} else if i+1 == nArg {
-			args[k] = nil
-		} else if i++; i < nArg {
-			if v := os.Args[i]; strings.HasPrefix(v, `-`) {
-				i--
-				args[k] = nil
-			} else {
-				args[k] = v
+				if isNilValue {
+					f.Value = new(bool)
+				}
+				*v = f.Value.(bool)
+				subCmd.Bool(v, f.Name, f.FullName, f.Usage)
+			case []string:
+				if isNilValue {
+					f.Value = make([]string, 0)
+				}
+				v = f.Value.([]string)
+				subCmd.StringSlice(&v, f.Name, f.FullName, f.Usage)
+			case []*string:
+				if isNilValue {
+					f.Value = make([]*string, 0)
+				}
+				v = f.Value.([]*string)
+				subCmd.Flags = append(subCmd.Flags, &flaggy.Flag{
+					AssignmentVar: &v,
+					ShortName:     f.Name,
+					LongName:      f.FullName,
+					Description:   f.Usage,
+				})
+			default:
+				log.Printf("invalid flag type: %#v", f)
 			}
 		}
 	}
+	for _, cmd := range actionCmds {
+		subCmd := flaggy.NewSubcommand(cmd.Name)
+		subCmd.Description = cmd.Desc
+		flagFn(subCmd, cmd.Flags)
+		flaggy.AttachSubcommand(subCmd, 1)
+		for _, c := range cmd.subCmds {
+			cs := flaggy.NewSubcommand(c.Name)
+			cs.Description = c.Desc
+			flagFn(cs, c.Flags)
+			subCmd.AttachSubcommand(cs, 1)
+		}
+	}
 
-	if nArg > 1 && !strings.HasPrefix(os.Args[1], `-`) {
+	if len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], `-`) {
 		action = os.Args[1]
 	}
-	//switch action {
-	//case `query`, `send`, `sends`, `receive`, `receives`, `delete`, `deletes`, `publish`, `publishes`:
-	flag.BoolVar(&debug, "d", false, "print debug log (default false)")
-	flag.StringVar(&uri, "uri", "", "request uri for message action")
-	//case `create`, `remove`, `modify`, `describe`, `list`:
-	flag.StringVar(&region, "region", "ap-guangzhou", "region for manage action")
-	flag.StringVar(&endpoint, "e", "", "endpoint for manage action")
-	//}
-
-	flag.BoolVar(&insecure, "insecure", false, "whether client skip verifies server's certificate (default false)")
-	flag.IntVar(&timeout, "timeout", 5, "client timeout in seconds")
-	flag.StringVar(&sid, "sid", "", "secret id")
-	flag.StringVar(&key, "key", "", "secret key")
-
-	flag.Parse()
-
-	delete(args, `-insecure`)
-	delete(args, `-timeout`)
-	delete(args, `-sid`)
-	delete(args, `-key`)
-	delete(args, `-d`)
-	delete(args, `-uri`)
-	delete(args, `-region`)
-	delete(args, `-e`)
-	var subArgs []string
-	for k, v := range args {
-		subArgs = append(subArgs, k)
-		if v != nil {
-			subArgs = append(subArgs, fmt.Sprint(v))
-		}
+	flaggy.String(&region, "r", "region", "public cloud region, ex: gz/sh/bj/usw/jp/de...")
+	switch action {
+	case `query`, `send`, `receive`, `delete`, `publish`:
+		flaggy.Bool(&debug, "d", `debug`, "print debug log (default false)")
+		flaggy.String(&uri, "u", "uri", "request uri for message action")
+		flaggy.String(&network, "n", "network", "access from public or private network")
+	case `create`, `remove`, `modify`, `describe`, `list`:
+		flaggy.String(&endpoint, "e", "endpoint", "special endpoint for manage action (disable region)")
 	}
 
-	if cmd, ok := flagSets[action]; ok {
-		err := cmd.Parse(subArgs)
-		if err != nil {
-			log.Println(err)
-			cmd.Usage()
-		}
-	} else {
-		log.Fatalln("invalid action:", action)
-	}
+	flaggy.Bool(&insecure, "k", `insecure`, "whether client skip verifies server's certificate")
+	flaggy.Int(&timeout, "t", `timeout`, "client timeout in seconds")
+	flaggy.String(&sid, "sid", "secretId", "secret id")
+	flaggy.String(&key, "key", "secretKey", "secret key")
+
+	// flaggy.DebugMode = true
+	flaggy.Parse()
 }
 
 func main() {
 	var err error
 	switch action {
-	case `query`, `send`, `sends`, `receive`, `receives`, `delete`, `deletes`, `publish`, `publishes`:
+	case `query`, `send`, `receive`, `delete`, `publish`:
+		if uri == `` && region != `` {
+			if network != `public` {
+				uri = fmt.Sprintf(lanUrl, region)
+			} else {
+				uri = fmt.Sprintf(wanUrl, region)
+			}
+		}
 		tcmq.InsecureSkipVerify = insecure
 		client, err = tcmq.NewClient(uri, sid, key, time.Duration(timeout)*time.Second)
 		if err != nil {
@@ -242,7 +383,7 @@ func main() {
 		if endpoint != `` {
 			prof.HttpProfile.Endpoint = endpoint
 		}
-		mgrClient, err = v20200217.NewClient(common.NewCredential(sid, key), region, prof)
+		mgrClient, err = v20200217.NewClient(common.NewCredential(sid, key), regions[region], prof)
 		if err != nil {
 			log.Println("new TCMQ manager client", err)
 			return
@@ -254,13 +395,37 @@ func main() {
 		})
 	}
 
-	actionCmds[action].Do()
+	var chooseCmd = make(map[string]bool)
+	for _, subCmd := range flaggy.DefaultParser.Subcommands {
+		chooseCmd[subCmd.Name] = subCmd.Used
+		for _, sc := range subCmd.Subcommands {
+			chooseCmd[subCmd.Name+`.`+sc.Name] = sc.Used
+		}
+	}
+
+	// fmt.Printf("%#v\n", chooseCmd)
+
+	for _, cmd := range actionCmds {
+		if cmd.Name != action {
+			continue
+		}
+		if len(cmd.subCmds) > 0 {
+			for _, c := range cmd.subCmds {
+				if chooseCmd[cmd.Name+`.`+c.Name] {
+					c.Do()
+					break
+				}
+			}
+		} else {
+			cmd.Do()
+		}
+	}
 }
 
 func query() {
 	switch {
-	case queue != ``:
-		r, err := client.QueryQueueRoute(queue)
+	case *q.QueueName != ``:
+		r, err := client.QueryQueueRoute(*q.QueueName)
 		if err != nil {
 			log.Println("query queue route:", err)
 			return
@@ -268,8 +433,8 @@ func query() {
 		if !debug {
 			fmt.Println(r)
 		}
-	case topic != ``:
-		r, err := client.QueryTopicRoute(topic)
+	case *t.TopicName != ``:
+		r, err := client.QueryTopicRoute(*t.TopicName)
 		if err != nil {
 			log.Println("query topic route:", err)
 			return
@@ -278,96 +443,11 @@ func query() {
 			fmt.Println(r)
 		}
 	default:
-		log.Printf("invalid query parameters, queue: %s, topic: %s\n", queue, topic)
+		log.Printf("invalid query parameters, queue: %s, topic: %s\n", *q.QueueName, *t.TopicName)
 	}
 }
 
 func send() {
-	if len(msgs) > 0 {
-		msg = msgs[0]
-	} else if length > 0 {
-		msg = strings.Repeat("#", length)
-		if length > tcmq.MaxMessageSize {
-			tcmq.MaxMessageSize = length
-		}
-	} else {
-		log.Println("no message to send, use -m to set message")
-		return
-	}
-	resp, err := client.SendMessage(queue, msg, delay)
-	if err != nil {
-		log.Println("send message:", err)
-		return
-	}
-	if !debug {
-		fmt.Println(resp)
-	}
-}
-
-func receive() {
-	resp, err := client.ReceiveMessage(queue, waits)
-	if err != nil {
-		log.Println("receive message:", err)
-		return
-	}
-	if !debug {
-		fmt.Println(resp)
-	}
-
-	if !ack || resp.Code() != 0 {
-		return
-	}
-	resp1, err := client.DeleteMessage(queue, resp.Handle())
-	if err != nil {
-		log.Println("delete message:", err)
-		return
-	}
-	if !debug {
-		fmt.Println(resp1)
-	}
-}
-
-func acknowledge() {
-	if len(handles) > 0 {
-		handle = handles[0]
-	} else {
-		log.Println("no handle to delete, use -handle to set handle")
-		return
-	}
-	resp, err := client.DeleteMessage(queue, handle)
-	if err != nil {
-		log.Println("delete message:", err)
-		return
-	}
-	if !debug {
-		fmt.Println(resp)
-	}
-}
-
-func publish() {
-	switch {
-	case len(msgs) > 0 && len(msgs[0]) > 0:
-		msg = msgs[0]
-	case length > 0:
-		msg = strings.Repeat("#", length)
-		if length > tcmq.MaxMessageSize {
-			tcmq.MaxMessageSize = length
-		}
-	default:
-		log.Println("no message to publish, use -m to set message")
-		return
-	}
-	resp, err := client.PublishMessage(topic, msg, route, tags)
-	if err != nil {
-		log.Println("publish message:", err)
-		return
-	}
-	if !debug {
-		fmt.Println(resp)
-	}
-}
-
-func sends() {
 	switch {
 	case len(msgs) > 0:
 		for i := range msgs {
@@ -377,23 +457,30 @@ func sends() {
 			}
 		}
 	case length > 0:
-		msg = strings.Repeat(`#`, length)
+		msg := strings.Repeat(`#`, length)
 		if length > tcmq.MaxMessageSize {
 			tcmq.MaxMessageSize = length
 		}
 		if number > 1 {
-			msgs = make(list, 0, number)
+			msgs = make([]string, 0, number)
 			for i := 0; i < number; i++ {
 				msgs = append(msgs, msg)
 			}
 		} else {
-			msgs = list{msg}
+			msgs = []string{msg}
 		}
 	default:
-		log.Println("no message to send, use -m to set message")
+		log.Println("no message to send, set message(s) via -m flag")
 		return
 	}
-	resp, err := client.BatchSendMessage(queue, msgs, delay)
+
+	var resp tcmq.Result
+	var err error
+	if len(msgs) == 1 {
+		resp, err = client.SendMessage(*q.QueueName, msgs[0], delay)
+	} else {
+		resp, err = client.BatchSendMessage(*q.QueueName, msgs, delay)
+	}
 	if err != nil {
 		log.Println("batch send message:", err)
 		return
@@ -403,8 +490,14 @@ func sends() {
 	}
 }
 
-func receives() {
-	resp, err := client.BatchReceiveMessage(queue, waits, number)
+func receive() {
+	var resp tcmq.Result
+	var err error
+	if number == 1 {
+		resp, err = client.ReceiveMessage(*q.QueueName, waits)
+	} else {
+		resp, err = client.BatchReceiveMessage(*q.QueueName, waits, number)
+	}
 	if err != nil {
 		log.Println("batch receive message:", err)
 		return
@@ -417,28 +510,21 @@ func receives() {
 		return
 	}
 	handles = nil
-	for _, m := range resp.MsgInfos() {
-		if len(m.Handle()) > 0 {
-			handles = append(handles, m.Handle())
+	switch res := resp.(type) {
+	case tcmq.ResponseRM:
+		resp, err = client.DeleteMessage(*q.QueueName, res.Handle())
+	case tcmq.ResponseRMs:
+		for _, m := range res.MsgInfos() {
+			if len(m.Handle()) > 0 {
+				handles = append(handles, m.Handle())
+			}
+		}
+		if len(handles) > 0 {
+			resp, err = client.BatchDeleteMessage(*q.QueueName, handles)
 		}
 	}
-
-	if len(handles) > 0 {
-		res, err := client.BatchDeleteMessage(queue, handles)
-		if err != nil {
-			log.Println("batch delete message:", err)
-			return
-		}
-		if !debug {
-			fmt.Println(res)
-		}
-	}
-}
-
-func acknowledges() {
-	resp, err := client.BatchDeleteMessage(queue, handles)
 	if err != nil {
-		log.Println("delete messages:", err)
+		log.Println("delete message:", err)
 		return
 	}
 	if !debug {
@@ -446,7 +532,24 @@ func acknowledges() {
 	}
 }
 
-func publishes() {
+func acknowledge() {
+	var resp tcmq.Result
+	var err error
+	if len(handles) == 1 {
+		resp, err = client.DeleteMessage(*q.QueueName, handles[0])
+	} else {
+		resp, err = client.BatchDeleteMessage(*q.QueueName, handles)
+	}
+	if err != nil {
+		log.Println("delete message(s):", err)
+		return
+	}
+	if !debug {
+		fmt.Println(resp)
+	}
+}
+
+func publish() {
 	switch {
 	case len(msgs) > 0:
 		for i := range msgs {
@@ -456,25 +559,31 @@ func publishes() {
 			}
 		}
 	case length > 0:
-		msg = strings.Repeat(`#`, length)
+		msg := strings.Repeat(`#`, length)
 		if length > tcmq.MaxMessageSize {
 			tcmq.MaxMessageSize = length
 		}
 		if number > 1 {
-			msgs = make(list, 0, number)
+			msgs = make([]string, 0, number)
 			for i := 0; i < number; i++ {
 				msgs = append(msgs, msg)
 			}
 		} else {
-			msgs = list{msg}
+			msgs = []string{msg}
 		}
 	default:
 		log.Println("no message to publish, use -m to set message")
 		return
 	}
-	resp, err := client.BatchPublishMessage(topic, route, msgs, tags)
+	var resp tcmq.Result
+	var err error
+	if len(msgs) == 1 {
+		resp, err = client.PublishMessage(*t.TopicName, msgs[0], route, tags)
+	} else {
+		resp, err = client.BatchPublishMessage(*t.TopicName, t.RoutingKey, msgs, tags)
+	}
 	if err != nil {
-		log.Println("publish message:", err)
+		log.Println("publish message(s):", err)
 		return
 	}
 	if !debug {
@@ -482,34 +591,46 @@ func publishes() {
 	}
 }
 
+func createQ() {
+	filter = `queue`
+	create()
+}
+
+func createT() {
+	filter = `topic`
+	create()
+}
+
+func createS() {
+	filter = `subscribe`
+	create()
+}
+
 func create() {
-	switch {
-	case subscribe != ``:
+	switch filter {
+	case `subscribe`:
 		sr := v20200217.NewCreateCmqSubscribeRequest()
-		p, ncf := `queue`, `SIMPLIFIED`
-		sr.SubscriptionName = &subscribe
-		sr.Protocol = &p
-		sr.NotifyContentFormat = &ncf
-		sr.TopicName = &topic
-		sr.Endpoint = &queue
+		_ = sr.FromJsonString(s.ToJsonString())
+		sr.TopicName = t.TopicName
+		sr.Endpoint = q.QueueName
 		resp, err := mgrClient.CreateCmqSubscribe(sr)
 		if err != nil {
 			log.Printf("create subscribe %s error: %v", *sr.SubscriptionName, err)
 			return
 		}
 		fmt.Println(resp.ToJsonString())
-	case queue != ``:
+	case `queue`:
 		qr := v20200217.NewCreateCmqQueueRequest()
-		qr.QueueName = &queue
+		_ = qr.FromJsonString(q.ToJsonString())
 		resp, err := mgrClient.CreateCmqQueue(qr)
 		if err != nil {
 			log.Printf("create queue %s error: %v", *qr.QueueName, err)
 			return
 		}
 		fmt.Println(resp.ToJsonString())
-	case topic != ``:
+	case `topic`:
 		tr := v20200217.NewCreateCmqTopicRequest()
-		tr.TopicName = &topic
+		_ = tr.FromJsonString(t.ToJsonString())
 		resp, err := mgrClient.CreateCmqTopic(tr)
 		if err != nil {
 			log.Printf("create topic %s error: %v", *tr.TopicName, err)
@@ -521,28 +642,36 @@ func create() {
 
 func remove() {
 	switch {
-	case subscribe != ``:
+	case *s.SubscriptionName != ``:
+		filter = `subscribe`
+	case *q.QueueName != ``:
+		filter = `queue`
+	case *t.TopicName != ``:
+		filter = `topic`
+	}
+	switch filter {
+	case `subscribe`:
 		sr := v20200217.NewDeleteCmqSubscribeRequest()
-		sr.SubscriptionName = &subscribe
-		sr.TopicName = &topic
+		sr.SubscriptionName = s.SubscriptionName
+		sr.TopicName = t.TopicName
 		resp, err := mgrClient.DeleteCmqSubscribe(sr)
 		if err != nil {
 			log.Printf("delete subscribe %s error: %v", *sr.SubscriptionName, err)
 			return
 		}
 		fmt.Println(resp.ToJsonString())
-	case queue != ``:
+	case `queue`:
 		qr := v20200217.NewDeleteCmqQueueRequest()
-		qr.QueueName = &queue
+		qr.QueueName = q.QueueName
 		resp, err := mgrClient.DeleteCmqQueue(qr)
 		if err != nil {
 			log.Printf("delete queue %s error: %v", *qr.QueueName, err)
 			return
 		}
 		fmt.Println(resp.ToJsonString())
-	case topic != ``:
+	case `topic`:
 		tr := v20200217.NewDeleteCmqTopicRequest()
-		tr.TopicName = &topic
+		tr.TopicName = t.TopicName
 		resp, err := mgrClient.DeleteCmqTopic(tr)
 		if err != nil {
 			log.Printf("delete topic %s error: %v", *tr.TopicName, err)
@@ -552,26 +681,45 @@ func remove() {
 	}
 }
 
+func modifyQ() {
+	filter = `queue`
+	modify()
+}
+
+func modifyT() {
+	filter = `topic`
+	modify()
+}
+
+func modifyS() {
+	filter = `subscribe`
+	modify()
+}
+
 func modify() {
-	switch {
-	case subscribe != ``:
+	switch filter {
+	case `subscribe`:
 		sr := v20200217.NewModifyCmqSubscriptionAttributeRequest()
+		_ = sr.FromJsonString(s.ToJsonString())
+		sr.TopicName = t.TopicName
 		resp, err := mgrClient.ModifyCmqSubscriptionAttribute(sr)
 		if err != nil {
 			log.Printf("modify queue %s error: %v", *sr.SubscriptionName, err)
 			return
 		}
 		fmt.Println(resp.ToJsonString())
-	case queue != ``:
+	case `queue`:
 		qr := v20200217.NewModifyCmqQueueAttributeRequest()
+		_ = qr.FromJsonString(q.ToJsonString())
 		resp, err := mgrClient.ModifyCmqQueueAttribute(qr)
 		if err != nil {
 			log.Printf("modify queue %s error: %v", *qr.QueueName, err)
 			return
 		}
 		fmt.Println(resp.ToJsonString())
-	case topic != ``:
+	case `topic`:
 		tr := v20200217.NewModifyCmqTopicAttributeRequest()
+		_ = tr.FromJsonString(t.ToJsonString())
 		resp, err := mgrClient.ModifyCmqTopicAttribute(tr)
 		if err != nil {
 			log.Printf("modify queue %s error: %v", *tr.TopicName, err)
@@ -583,28 +731,38 @@ func modify() {
 
 func describe() {
 	switch {
-	case subscribe != ``:
+	case *s.SubscriptionName != ``:
+		filter = `subscribe`
+	case *q.QueueName != ``:
+		filter = `queue`
+	case *t.TopicName != ``:
+		filter = `topic`
+	}
+	switch filter {
+	case `subscribe`:
 		sr := v20200217.NewDescribeCmqSubscriptionDetailRequest()
-		sr.TopicName = &topic
-		sr.SubscriptionName = &subscribe
+		sr.TopicName = t.TopicName
+		sr.SubscriptionName = s.SubscriptionName
+		sr.Limit = &limit
+		sr.Offset = &offset
 		detail, err := mgrClient.DescribeCmqSubscriptionDetail(sr)
 		if err != nil {
 			log.Printf("describe subscribe %s error: %v", *sr.SubscriptionName, err)
 			return
 		}
 		fmt.Println(detail.ToJsonString())
-	case queue != ``:
+	case `queue`:
 		qr := v20200217.NewDescribeCmqQueueDetailRequest()
-		qr.QueueName = &queue
+		qr.QueueName = q.QueueName
 		detail, err := mgrClient.DescribeCmqQueueDetail(qr)
 		if err != nil {
 			log.Printf("describe queue %s error: %v", *qr.QueueName, err)
 			return
 		}
 		fmt.Println(detail.ToJsonString())
-	case topic != ``:
+	case `topic`:
 		tr := v20200217.NewDescribeCmqTopicDetailRequest()
-		tr.TopicName = &topic
+		tr.TopicName = t.TopicName
 		detail, err := mgrClient.DescribeCmqTopicDetail(tr)
 		if err != nil {
 			log.Printf("describe topic %s error: %v", *tr.TopicName, err)
@@ -615,9 +773,21 @@ func describe() {
 }
 
 func lists() {
+	switch {
+	case *s.SubscriptionName != ``:
+		filter = `subscribe`
+	case *q.QueueName != ``:
+		filter = `queue`
+	case *t.TopicName != ``:
+		filter = `topic`
+	}
 	switch filter {
 	case `subscribe`:
 		sr := v20200217.NewDescribeSubscriptionsRequest()
+		sr.TopicName = t.TopicName
+		sr.SubscriptionName = s.SubscriptionName
+		sr.Limit = &limit
+		sr.Offset = &offset
 		resp, err := mgrClient.DescribeSubscriptions(sr)
 		if err != nil {
 			return
@@ -625,6 +795,10 @@ func lists() {
 		fmt.Println(resp.ToJsonString())
 	case `queue`:
 		qr := v20200217.NewDescribeCmqQueuesRequest()
+		qr.QueueName = q.QueueName
+		// qr.QueueNameList =   // TODO
+		qr.Limit = &limit
+		qr.Offset = &offset
 		resp, err := mgrClient.DescribeCmqQueues(qr)
 		if err != nil {
 			log.Printf("describe queue %s error: %v", *qr.QueueName, err)
@@ -638,5 +812,55 @@ func lists() {
 			return
 		}
 		fmt.Println(resp.ToJsonString())
+	case `region`:
+		var keys []string
+		wg := &sync.WaitGroup{}
+		status := &sync.Map{}
+		http.DefaultClient.Timeout = 2 * time.Second
+		check := func(u string) {
+			var available bool
+			resp, err := http.Get(u)
+			if err == nil && resp != nil && resp.StatusCode == http.StatusOK {
+				available = true
+			}
+			status.Store(u, available)
+			wg.Done()
+		}
+		state := func(k string) (wanState, lanState string) {
+			var wan, lan bool
+			if v, ok := status.Load(fmt.Sprintf(wanUrl, k)); ok {
+				wan = v.(bool)
+			}
+			if v, ok := status.Load(fmt.Sprintf(lanUrl, k)); ok {
+				lan = v.(bool)
+			}
+			wanState, lanState = `-`, `-`
+			if wan {
+				wanState = `Arrive`
+			}
+			if lan {
+				lanState = `Arrive`
+			}
+			return
+		}
+		format := "%7s  %-18s %-6s %-7s\n"
+		fmt.Printf(format, `Region`, `AP Code`, `Public`, `Private`)
+		if region != `` {
+			regions = map[string]string{
+				region: regions[region],
+			}
+		}
+		wg.Add(len(regions) * 2)
+		for k := range regions {
+			go check(fmt.Sprintf(wanUrl, k))
+			go check(fmt.Sprintf(lanUrl, k))
+			keys = append(keys, k)
+		}
+		wg.Wait()
+		sort.Strings(keys)
+		for _, k := range keys {
+			wanState, lanState := state(k)
+			fmt.Printf(format, k, regions[k], wanState, lanState)
+		}
 	}
 }
