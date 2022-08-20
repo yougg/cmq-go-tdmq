@@ -31,11 +31,12 @@ type (
 	}
 
 	SubCmd struct {
-		Name    string
-		Do      func()
-		Desc    string
-		Flags   []Flag
-		subCmds []SubCmd
+		ShortName string
+		Name      string
+		Do        func()
+		Desc      string
+		Flags     []Flag
+		subCmds   []SubCmd
 	}
 
 	Queue struct {
@@ -246,25 +247,25 @@ var (
 	}
 
 	actionCmds = []SubCmd{
-		{Name: `send`, Do: send, Desc: "send message(s) to queue", Flags: []Flag{qFlag, mFlag, lFlag, dFlag}},
-		{Name: `receive`, Do: receive, Desc: "receive message(s) from queue", Flags: []Flag{qFlag, wFlag, nFlag, ackFlag}},
-		{Name: `delete`, Do: acknowledge, Desc: "delete message by handle(s)", Flags: []Flag{qFlag, hFlag}},
-		{Name: `publish`, Do: publish, Desc: "publish message(s) to topic", Flags: []Flag{tFlag, mFlag, nFlag, lFlag, rFlag, tagFlag}},
-		{Name: `query`, Do: query, Desc: "query topic/queue route for tcp", Flags: []Flag{qFlag, tFlag}},
+		{ShortName: `s`, Name: `send`, Do: send, Desc: "send message(s) to queue", Flags: []Flag{qFlag, mFlag, lFlag, dFlag}},
+		{ShortName: `r`, Name: `receive`, Do: receive, Desc: "receive message(s) from queue", Flags: []Flag{qFlag, wFlag, nFlag, ackFlag}},
+		{ShortName: `d`, Name: `delete`, Do: acknowledge, Desc: "delete message by handle(s)", Flags: []Flag{qFlag, hFlag}},
+		{ShortName: `p`, Name: `publish`, Do: publish, Desc: "publish message(s) to topic", Flags: []Flag{tFlag, mFlag, nFlag, lFlag, rFlag, tagFlag}},
+		{ShortName: `q`, Name: `query`, Do: query, Desc: "query topic/queue route for tcp", Flags: []Flag{qFlag, tFlag}},
 		{Name: ` `},
-		{Name: `create`, Desc: "create queue/topic/subscribe", subCmds: []SubCmd{
-			{Name: `queue`, Do: createQ, Desc: "create queue", Flags: queueFlags},
-			{Name: `topic`, Do: createT, Desc: "create topic", Flags: topicFlags},
-			{Name: `subscribe`, Do: createS, Desc: "create subscribe", Flags: subscribeFlags},
+		{ShortName: `c`, Name: `create`, Desc: "create queue/topic/subscribe", subCmds: []SubCmd{
+			{ShortName: `q`, Name: `queue`, Do: createQ, Desc: "create queue", Flags: queueFlags},
+			{ShortName: `t`, Name: `topic`, Do: createT, Desc: "create topic", Flags: topicFlags},
+			{ShortName: `s`, Name: `subscribe`, Do: createS, Desc: "create subscribe", Flags: subscribeFlags},
 		}},
-		{Name: `remove`, Do: remove, Desc: "remove queue/topic/subscribe", Flags: []Flag{sFlag, qFlag, tFlag}},
-		{Name: `modify`, Desc: "modify queue/topic/subscribe", subCmds: []SubCmd{
-			{Name: `queue`, Do: modifyQ, Desc: "modify queue", Flags: queueFlags},
-			{Name: `topic`, Do: modifyT, Desc: "modify topic", Flags: topicFlags},
-			{Name: `subscribe`, Do: modifyS, Desc: "modify subscribe", Flags: subscribeFlags},
+		{ShortName: `e`, Name: `remove`, Do: remove, Desc: "remove queue/topic/subscribe", Flags: []Flag{sFlag, qFlag, tFlag}},
+		{ShortName: `m`, Name: `modify`, Desc: "modify queue/topic/subscribe", subCmds: []SubCmd{
+			{ShortName: `q`, Name: `queue`, Do: modifyQ, Desc: "modify queue", Flags: queueFlags},
+			{ShortName: `t`, Name: `topic`, Do: modifyT, Desc: "modify topic", Flags: topicFlags},
+			{ShortName: `s`, Name: `subscribe`, Do: modifyS, Desc: "modify subscribe", Flags: subscribeFlags},
 		}},
-		{Name: `describe`, Do: describe, Desc: "describe queue/topic/subscribe", Flags: []Flag{sFlag, qFlag, tFlag, fFlag, limitF, offsetF}},
-		{Name: `list`, Do: lists, Desc: "list queue/topic/subscribe/region", Flags: []Flag{sFlag, qFlag, tFlag, fFlag, limitF, offsetF}},
+		{ShortName: `i`, Name: `describe`, Do: describe, Desc: "describe queue/topic/subscribe", Flags: []Flag{sFlag, qFlag, tFlag, fFlag, limitF, offsetF}},
+		{ShortName: `l`, Name: `list`, Do: lists, Desc: "list queue/topic/subscribe/region", Flags: []Flag{sFlag, qFlag, tFlag, fFlag, limitF, offsetF}},
 	}
 )
 
@@ -325,11 +326,13 @@ func init() {
 	}
 	for _, cmd := range actionCmds {
 		subCmd := flaggy.NewSubcommand(cmd.Name)
+		subCmd.ShortName = cmd.ShortName
 		subCmd.Description = cmd.Desc
 		flagFn(subCmd, cmd.Flags)
 		flaggy.AttachSubcommand(subCmd, 1)
 		for _, c := range cmd.subCmds {
 			cs := flaggy.NewSubcommand(c.Name)
+			cs.ShortName = c.ShortName
 			cs.Description = c.Desc
 			flagFn(cs, c.Flags)
 			subCmd.AttachSubcommand(cs, 1)
