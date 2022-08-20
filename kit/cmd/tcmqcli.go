@@ -401,20 +401,27 @@ func main() {
 	var chooseCmd = make(map[string]bool)
 	for _, subCmd := range flaggy.DefaultParser.Subcommands {
 		chooseCmd[subCmd.Name] = subCmd.Used
+		chooseCmd[subCmd.ShortName] = subCmd.Used
 		for _, sc := range subCmd.Subcommands {
 			chooseCmd[subCmd.Name+`.`+sc.Name] = sc.Used
+			chooseCmd[subCmd.Name+`.`+sc.ShortName] = sc.Used
+			chooseCmd[subCmd.ShortName+`.`+sc.Name] = sc.Used
+			chooseCmd[subCmd.ShortName+`.`+sc.ShortName] = sc.Used
 		}
 	}
 
 	// fmt.Printf("%#v\n", chooseCmd)
 
 	for _, cmd := range actionCmds {
-		if cmd.Name != action {
+		if cmd.Name != action && cmd.ShortName != action {
 			continue
 		}
 		if len(cmd.subCmds) > 0 {
 			for _, c := range cmd.subCmds {
-				if chooseCmd[cmd.Name+`.`+c.Name] {
+				if chooseCmd[cmd.Name+`.`+c.Name] ||
+					chooseCmd[cmd.Name+`.`+c.ShortName] ||
+					chooseCmd[cmd.ShortName+`.`+c.Name] ||
+					chooseCmd[cmd.ShortName+`.`+c.ShortName] {
 					c.Do()
 					break
 				}
