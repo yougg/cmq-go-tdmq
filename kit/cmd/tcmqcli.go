@@ -201,7 +201,7 @@ var (
 	lFlag   = Flag{&length, `l`, `length`, 0, `send/publish message(s) with specified length, unit: byte`}
 	tagFlag = Flag{s.Tag, `g`, `tag`, nil, `tag(s), repeat the flag multi times to set multi tags`}
 	hFlag   = Flag{handles, `n`, `handle`, nil, `handle(s), repeat the flag 2~16 times to set multi handles`}
-	ackFlag = Flag{&ack, `r`, `ack`, false, `receive message(s) with ack`}
+	ackFlag = Flag{&ack, `c`, `ack`, false, `receive message(s) with ack`}
 	nFlag   = Flag{&number, `n`, `number`, 1, `send/receive/publish <number> message(s) with special <length>`}
 	dFlag   = Flag{&delay, `y`, `delay`, 0, `send message(s) <delay> second`}
 	wFlag   = Flag{&waits, `w`, `wait`, 5, `receive message(s) <wait> seconds`}
