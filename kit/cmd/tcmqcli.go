@@ -117,12 +117,11 @@ var (
 
 	action string
 
-	msgs   []string
+	msgs   = make([]string, 0, 16)
 	length int
 
-	handles []string
+	handles = make([]string, 0, 16)
 
-	tags  []string
 	route string
 
 	ack     bool
@@ -181,7 +180,7 @@ var (
 		},
 	}
 	s = Subscribe{
-		Tag: make([]string, 0),
+		Tag: make([]string, 0, 5),
 		CreateCmqSubscribeRequest: v20200217.CreateCmqSubscribeRequest{
 			TopicName:           new(string),
 			SubscriptionName:    new(string),
@@ -198,10 +197,10 @@ var (
 	tFlag   = Flag{t.TopicName, `t`, `topic`, ``, `topic name`}
 	sFlag   = Flag{s.SubscriptionName, `s`, `subscribe`, ``, `subscribe name`}
 	rFlag   = Flag{&t.RoutingKey, `r`, `routingKey`, ``, `routing key`}
-	mFlag   = Flag{msgs, `m`, `msg`, nil, `message(s), repeat the flag 2~16 times to set multi messages`}
+	mFlag   = Flag{&msgs, `m`, `msg`, &msgs, `message(s), repeat the flag 2~16 times to set multi messages`}
 	lFlag   = Flag{&length, `l`, `length`, 0, `send/publish message(s) with specified length, unit: byte`}
-	tagFlag = Flag{s.Tag, `g`, `tag`, nil, `tag(s), repeat the flag multi times to set multi tags`}
-	hFlag   = Flag{handles, `n`, `handle`, nil, `handle(s), repeat the flag 2~16 times to set multi handles`}
+	tagFlag = Flag{&s.Tag, `g`, `tag`, &s.Tag, `tag(s), repeat the flag multi times to set multi tags`}
+	hFlag   = Flag{&handles, `n`, `handle`, &handles, `handle(s), repeat the flag 2~16 times to set multi handles`}
 	ackFlag = Flag{&ack, `c`, `ack`, false, `receive message(s) with ack`}
 	nFlag   = Flag{&number, `n`, `number`, 1, `send/receive/publish <number> message(s) with special <length>`}
 	dFlag   = Flag{&delay, `y`, `delay`, 0, `send message(s) <delay> second`}
@@ -308,6 +307,12 @@ func init() {
 				}
 				v = f.Value.([]string)
 				subCmd.StringSlice(&v, f.Name, f.FullName, f.Usage)
+			case *[]string:
+				if isNilValue {
+					f.Value = &[]string{}
+				}
+				v = f.Value.(*[]string)
+				subCmd.StringSlice(v, f.Name, f.FullName, f.Usage)
 			case []*string:
 				if isNilValue {
 					f.Value = make([]*string, 0)
@@ -344,11 +349,11 @@ func init() {
 	}
 	flaggy.String(&region, "r", "region", "public cloud region, ex: gz/sh/bj/usw/jp/de...")
 	switch action {
-	case `query`, `send`, `receive`, `delete`, `publish`:
+	case `query`, `send`, `receive`, `delete`, `publish`, `q`, `s`, `r`, `d`, `p`:
 		flaggy.Bool(&debug, "d", `debug`, "print debug log (default false)")
 		flaggy.String(&uri, "u", "uri", "request uri for message action")
 		flaggy.String(&network, "n", "network", "access from public or private network")
-	case `create`, `remove`, `modify`, `describe`, `list`:
+	case `create`, `remove`, `modify`, `describe`, `list`, `c`, `e`, `m`, `i`, `l`:
 		flaggy.String(&endpoint, "e", "endpoint", "special endpoint for manage action (disable region)")
 	}
 
@@ -364,7 +369,7 @@ func init() {
 func main() {
 	var err error
 	switch action {
-	case `query`, `send`, `receive`, `delete`, `publish`:
+	case `query`, `send`, `receive`, `delete`, `publish`, `q`, `s`, `r`, `d`, `p`:
 		if uri == `` && region != `` {
 			if network != `public` {
 				uri = fmt.Sprintf(lanUrl, region)
@@ -379,7 +384,7 @@ func main() {
 			return
 		}
 		client.Debug = debug
-	case `create`, `remove`, `modify`, `describe`, `list`:
+	case `create`, `remove`, `modify`, `describe`, `list`, `c`, `e`, `m`, `i`, `l`:
 		// 管控API文档: https://cloud.tencent.com/document/product/1496/62819
 		prof := profile.NewClientProfile()
 		prof.HttpProfile.ReqTimeout = timeout
@@ -588,9 +593,9 @@ func publish() {
 	var resp tcmq.Result
 	var err error
 	if len(msgs) == 1 {
-		resp, err = client.PublishMessage(*t.TopicName, msgs[0], route, tags)
+		resp, err = client.PublishMessage(*t.TopicName, msgs[0], route, s.Tag)
 	} else {
-		resp, err = client.BatchPublishMessage(*t.TopicName, t.RoutingKey, msgs, tags)
+		resp, err = client.BatchPublishMessage(*t.TopicName, t.RoutingKey, msgs, s.Tag)
 	}
 	if err != nil {
 		log.Println("publish message(s):", err)
