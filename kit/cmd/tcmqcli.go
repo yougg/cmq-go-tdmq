@@ -352,7 +352,7 @@ func init() {
 	case `query`, `send`, `receive`, `delete`, `publish`, `q`, `s`, `r`, `d`, `p`:
 		flaggy.Bool(&debug, "d", `debug`, "print debug log (default false)")
 		flaggy.String(&uri, "u", "uri", "request uri for message action")
-		flaggy.String(&network, "n", "network", "access from public or private network")
+		flaggy.String(&network, "net", "network", "access from public or private network")
 	case `create`, `remove`, `modify`, `describe`, `list`, `c`, `e`, `m`, `i`, `l`:
 		flaggy.String(&endpoint, "e", "endpoint", "special endpoint for manage action (disable region)")
 	}
