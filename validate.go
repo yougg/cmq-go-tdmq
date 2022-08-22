@@ -10,7 +10,7 @@ var (
 	MaxDelaySeconds   = 70 * 24 * 60 * 60 // 70 day
 	MaxWaitSeconds    = 30
 	MaxHandleCount    = 16
-	MaxHandleLength   = 80
+	MaxHandleLength   = 256
 	MaxRouteKeyLength = 64
 	MaxRouteKeyDots   = 15
 	MaxTagCount       = 5
@@ -23,5 +23,5 @@ var (
 
 var (
 	nameReg   = regexp.MustCompile(`^[a-zA-Z][a-zA-Z\d_-]{0,63}$`)
-	handleReg = regexp.MustCompile(`^[1-9]\d{0,79}$`)
+	handleReg = regexp.MustCompile(`^[a-zA-Z\d%#:_-]{0,256}$`)
 )
