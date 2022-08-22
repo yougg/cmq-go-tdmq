@@ -1,8 +1,3 @@
-////go:generate rm -f go.mod go.sum
-////go:generate go mod init github.com/yougg/cmq-go-tdmq/kit/perf
-////go:generate go mod tidy
-////go:generate go mod edit -replace=github.com/yougg/cmq-go-tdmq=../..
-////go:generate go mod tidy
 //go:generate go build -trimpath -buildmode pie -installsuffix netgo -tags "osusergo netgo static_build" -ldflags "-s -w" ${GOFILE}
 //go:generate sh -c "[ -z \"${GOEXE}\" ] && gzip -S _${GOOS}_${GOARCH}.gz perf || zip -mjq perf_${GOOS}_${GOARCH}.zip perf${GOEXE}"
 package main
@@ -13,11 +8,11 @@ import (
 	"errors"
 	"flag"
 	"hash/crc32"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -99,7 +94,7 @@ var (
 
 	randMsg string
 
-	tps, tps1, tps2 = new(int32), new(int32), new(int32)
+	tps, tps1, tps2 = &atomic.Uint32{}, &atomic.Uint32{}, &atomic.Uint32{}
 )
 
 func init() {
@@ -122,7 +117,7 @@ func init() {
 		return
 	}
 
-	data, err := ioutil.ReadFile(kase)
+	data, err := os.ReadFile(kase)
 	if err != nil {
 		log.Println("read case file", err)
 		return
@@ -188,7 +183,7 @@ func main() {
 		// go tool pprof -http=:9999 'http://127.0.0.1:6666/debug/pprof/block'
 		// go tool pprof -http=:9999 'http://127.0.0.1:6666/debug/pprof/mutex'
 		// wget -O trace.out 'http://127.0.0.1:6666/debug/pprof/trace?seconds=5'
-		//  go tool trace trace.out
+		//  go tool trace 'trace.out'
 		err := http.ListenAndServe(addr, nil)
 		if err != nil {
 			log.Println(err)
@@ -312,7 +307,7 @@ func test(c *Case) {
 	go func() {
 		for range ticker.C {
 			// 每10毫秒统计一次当前TPS，统计后清零
-			n, n1, n2 := atomic.SwapInt32(tps, 0), atomic.SwapInt32(tps1, 0), atomic.SwapInt32(tps2, 0)
+			n, n1, n2 := tps.Swap(0), tps1.Swap(0), tps2.Swap(0)
 			// 10ms/次 统计100次(1秒内) 的TPS
 			r.Value, r1.Value, r2.Value = n, n1, n2
 			r, r1, r2 = r.Next(), r1.Next(), r2.Next()
@@ -375,11 +370,11 @@ func test(c *Case) {
 					var succeed bool
 					defer func() {
 						// 当前事务完成后增加TPS
-						atomic.AddInt32(tps, 1)
+						tps.Add(1)
 						if succeed {
-							atomic.AddInt32(tps1, 1)
+							tps1.Add(1)
 						} else {
-							atomic.AddInt32(tps2, 1)
+							tps2.Add(1)
 						}
 						wg.Done()
 					}()
