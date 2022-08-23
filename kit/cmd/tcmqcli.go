@@ -206,7 +206,7 @@ var (
 	dFlag   = Flag{&delay, `y`, `delay`, 0, `send message(s) <delay> second`}
 	wFlag   = Flag{&waits, `w`, `wait`, 5, `receive message(s) <wait> seconds`}
 	fFlag   = Flag{&filter, `f`, `filter`, ``, `list filter resource type: queue/topic/subscribe/region`}
-	limitF  = Flag{&limit, `l`, `limit`, 0, `limit query page size`}
+	limitF  = Flag{&limit, `l`, `limit`, 20, `limit query page size`}
 	offsetF = Flag{&offset, `o`, `offset`, 0, `begin index of query page`}
 
 	queueFlags = []Flag{
