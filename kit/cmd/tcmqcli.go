@@ -631,8 +631,6 @@ func create() {
 	case `subscribe`:
 		sr := v20200217.NewCreateCmqSubscribeRequest()
 		_ = sr.FromJsonString(s.ToJsonString())
-		sr.TopicName = t.TopicName
-		sr.Endpoint = q.QueueName
 		resp, err := mgrClient.CreateCmqSubscribe(sr)
 		if err != nil {
 			log.Printf("create subscribe %s error: %v", *sr.SubscriptionName, err)
@@ -721,7 +719,6 @@ func modify() {
 	case `subscribe`:
 		sr := v20200217.NewModifyCmqSubscriptionAttributeRequest()
 		_ = sr.FromJsonString(s.ToJsonString())
-		sr.TopicName = t.TopicName
 		resp, err := mgrClient.ModifyCmqSubscriptionAttribute(sr)
 		if err != nil {
 			log.Printf("modify queue %s error: %v", *sr.SubscriptionName, err)
@@ -750,13 +747,15 @@ func modify() {
 }
 
 func describe() {
-	switch {
-	case *s.SubscriptionName != ``:
-		filter = `subscribe`
-	case *q.QueueName != ``:
-		filter = `queue`
-	case *t.TopicName != ``:
-		filter = `topic`
+	if filter == `` {
+		switch {
+		case *s.SubscriptionName != ``:
+			filter = `subscribe`
+		case *q.QueueName != ``:
+			filter = `queue`
+		case *t.TopicName != ``:
+			filter = `topic`
+		}
 	}
 	switch filter {
 	case `subscribe`:
