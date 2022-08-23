@@ -137,7 +137,7 @@ var (
 	region   string
 	endpoint string
 
-	limit  uint64
+	limit  uint64 = 20
 	offset uint64
 	filter = `queue`
 )
