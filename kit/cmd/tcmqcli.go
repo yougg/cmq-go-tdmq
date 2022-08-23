@@ -525,18 +525,23 @@ func receive() {
 		return
 	}
 	handles = nil
-	switch res := resp.(type) {
-	case tcmq.ResponseRM:
-		resp, err = client.DeleteMessage(*q.QueueName, res.Handle())
-	case tcmq.ResponseRMs:
+	if res, ok := resp.(tcmq.ResponseRM); ok {
+		if handle := res.Handle(); len(handle) > 0 {
+			handles = append(handles, handle)
+		}
+	}
+	if res, ok := resp.(tcmq.ResponseRMs); ok {
 		for _, m := range res.MsgInfos() {
-			if len(m.Handle()) > 0 {
-				handles = append(handles, m.Handle())
+			if handle := m.Handle(); len(handle) > 0 {
+				handles = append(handles, handle)
 			}
 		}
-		if len(handles) > 0 {
-			resp, err = client.BatchDeleteMessage(*q.QueueName, handles)
-		}
+	}
+	switch len(handles) {
+	case 1:
+		resp, err = client.DeleteMessage(*q.QueueName, handles[0])
+	default:
+		resp, err = client.BatchDeleteMessage(*q.QueueName, handles)
 	}
 	if err != nil {
 		log.Println("delete message:", err)
