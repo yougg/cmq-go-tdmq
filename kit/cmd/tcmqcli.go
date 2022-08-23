@@ -358,7 +358,7 @@ func init() {
 	}
 
 	flaggy.Bool(&insecure, "k", `insecure`, "whether client skip verifies server's certificate")
-	flaggy.Int(&timeout, "t", `timeout`, "client timeout in seconds")
+	flaggy.Int(&timeout, "", `timeout`, "client timeout in seconds")
 	flaggy.String(&sid, "sid", "secretId", "secret id")
 	flaggy.String(&key, "key", "secretKey", "secret key")
 
@@ -839,7 +839,7 @@ func lists() {
 		var keys []string
 		wg := &sync.WaitGroup{}
 		status := &sync.Map{}
-		http.DefaultClient.Timeout = 2 * time.Second
+		http.DefaultClient.Timeout = time.Duration(timeout) * time.Second
 		check := func(u string) {
 			var available bool
 			resp, err := http.Get(u)
