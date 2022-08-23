@@ -122,8 +122,6 @@ var (
 
 	handles = make([]string, 0, 16)
 
-	route string
-
 	ack     bool
 	timeout = 5
 	number  = 1
@@ -202,7 +200,7 @@ var (
 	tagFlag = Flag{&s.Tag, `g`, `tag`, &s.Tag, `tag(s), repeat the flag multi times to set multi tags`}
 	hFlag   = Flag{&handles, `n`, `handle`, &handles, `handle(s), repeat the flag 2~16 times to set multi handles`}
 	ackFlag = Flag{&ack, `c`, `ack`, false, `receive message(s) with ack`}
-	nFlag   = Flag{&number, `n`, `number`, 1, `send/receive/publish <number> message(s) with special <length>`}
+	nFlag   = Flag{&number, `n`, `number`, 1, `send/receive/publish <number> message(s)`}
 	dFlag   = Flag{&delay, `y`, `delay`, 0, `send message(s) <delay> second`}
 	wFlag   = Flag{&waits, `w`, `wait`, 5, `receive message(s) <wait> seconds`}
 	fFlag   = Flag{&filter, `f`, `filter`, ``, `list filter resource type: queue/topic/subscribe/region`}
@@ -246,7 +244,7 @@ var (
 	}
 
 	actionCmds = []SubCmd{
-		{ShortName: `s`, Name: `send`, Do: send, Desc: "send message(s) to queue", Flags: []Flag{qFlag, mFlag, lFlag, dFlag}},
+		{ShortName: `s`, Name: `send`, Do: send, Desc: "send message(s) to queue", Flags: []Flag{qFlag, mFlag, lFlag, dFlag, nFlag}},
 		{ShortName: `r`, Name: `receive`, Do: receive, Desc: "receive message(s) from queue", Flags: []Flag{qFlag, wFlag, nFlag, ackFlag}},
 		{ShortName: `d`, Name: `delete`, Do: acknowledge, Desc: "delete message by handle(s)", Flags: []Flag{qFlag, hFlag}},
 		{ShortName: `p`, Name: `publish`, Do: publish, Desc: "publish message(s) to topic", Flags: []Flag{tFlag, mFlag, nFlag, lFlag, rFlag, tagFlag}},
@@ -489,12 +487,17 @@ func send() {
 		return
 	}
 
+	queue := &tcmq.Queue{
+		Client:       client,
+		Name:         *q.QueueName,
+		DelaySeconds: delay,
+	}
 	var resp tcmq.Result
 	var err error
 	if len(msgs) == 1 {
-		resp, err = client.SendMessage(*q.QueueName, msgs[0], delay)
+		resp, err = queue.Send(msgs[0])
 	} else {
-		resp, err = client.BatchSendMessage(*q.QueueName, msgs, delay)
+		resp, err = queue.BatchSend(msgs...)
 	}
 	if err != nil {
 		log.Println("batch send message:", err)
@@ -506,12 +509,17 @@ func send() {
 }
 
 func receive() {
+	queue := &tcmq.Queue{
+		Client:             client,
+		Name:               *q.QueueName,
+		PollingWaitSeconds: waits,
+	}
 	var resp tcmq.Result
 	var err error
 	if number == 1 {
-		resp, err = client.ReceiveMessage(*q.QueueName, waits)
+		resp, err = queue.Receive()
 	} else {
-		resp, err = client.BatchReceiveMessage(*q.QueueName, waits, number)
+		resp, err = queue.BatchReceive(number)
 	}
 	if err != nil {
 		log.Println("batch receive message:", err)
@@ -539,9 +547,9 @@ func receive() {
 	}
 	switch len(handles) {
 	case 1:
-		resp, err = client.DeleteMessage(*q.QueueName, handles[0])
+		resp, err = queue.Delete(handles[0])
 	default:
-		resp, err = client.BatchDeleteMessage(*q.QueueName, handles)
+		resp, err = queue.BatchDelete(handles...)
 	}
 	if err != nil {
 		log.Println("delete message:", err)
@@ -553,12 +561,16 @@ func receive() {
 }
 
 func acknowledge() {
+	queue := &tcmq.Queue{
+		Client: client,
+		Name:   *q.QueueName,
+	}
 	var resp tcmq.Result
 	var err error
 	if len(handles) == 1 {
-		resp, err = client.DeleteMessage(*q.QueueName, handles[0])
+		resp, err = queue.Delete(handles[0])
 	} else {
-		resp, err = client.BatchDeleteMessage(*q.QueueName, handles)
+		resp, err = queue.BatchDelete(handles...)
 	}
 	if err != nil {
 		log.Println("delete message(s):", err)
@@ -595,12 +607,18 @@ func publish() {
 		log.Println("no message to publish, use -m to set message")
 		return
 	}
+	topic := &tcmq.Topic{
+		Client:     client,
+		Name:       *t.TopicName,
+		RoutingKey: t.RoutingKey,
+		Tags:       s.Tag,
+	}
 	var resp tcmq.Result
 	var err error
 	if len(msgs) == 1 {
-		resp, err = client.PublishMessage(*t.TopicName, msgs[0], route, s.Tag)
+		resp, err = topic.Publish(msgs[0])
 	} else {
-		resp, err = client.BatchPublishMessage(*t.TopicName, t.RoutingKey, msgs, s.Tag)
+		resp, err = topic.BatchPublish(msgs...)
 	}
 	if err != nil {
 		log.Println("publish message(s):", err)
