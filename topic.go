@@ -7,6 +7,21 @@ import (
 	"strings"
 )
 
+type Topic struct {
+	Client     *Client
+	Name       string
+	RoutingKey string
+	Tags       []string
+}
+
+func (t *Topic) Publish(message string) (ResponseSM, error) {
+	return t.Client.PublishMessage(t.Name, message, t.RoutingKey, t.Tags)
+}
+
+func (t *Topic) BatchPublish(messages ...string) (ResponseSMs, error) {
+	return t.Client.BatchPublishMessage(t.Name, t.RoutingKey, messages, t.Tags)
+}
+
 // PublishMessage
 //  API: https://cloud.tencent.com/document/product/406/7411
 //  input: topic string

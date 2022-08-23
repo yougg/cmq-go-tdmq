@@ -7,6 +7,37 @@ import (
 	"time"
 )
 
+type Queue struct {
+	Client             *Client
+	Name               string
+	DelaySeconds       int
+	PollingWaitSeconds int
+}
+
+func (q *Queue) Send(message string) (ResponseSM, error) {
+	return q.Client.SendMessage(q.Name, message, q.DelaySeconds)
+}
+
+func (q *Queue) BatchSend(messages ...string) (ResponseSMs, error) {
+	return q.Client.BatchSendMessage(q.Name, messages, q.DelaySeconds)
+}
+
+func (q *Queue) Receive() (ResponseRM, error) {
+	return q.Client.ReceiveMessage(q.Name, q.PollingWaitSeconds)
+}
+
+func (q *Queue) BatchReceive(numOfMsg int) (ResponseRMs, error) {
+	return q.Client.BatchReceiveMessage(q.Name, q.PollingWaitSeconds, numOfMsg)
+}
+
+func (q *Queue) Delete(handle string) (ResponseDM, error) {
+	return q.Client.DeleteMessage(q.Name, handle)
+}
+
+func (q *Queue) BatchDelete(handles ...string) (ResponseDMs, error) {
+	return q.Client.BatchDeleteMessage(q.Name, handles)
+}
+
 // SendMessage
 //  API: https://cloud.tencent.com/document/product/406/5837
 //  input: queue string

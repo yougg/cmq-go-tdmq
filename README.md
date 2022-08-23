@@ -48,36 +48,42 @@ func main() {
     // client.Token = `your_token` // for temporary secretId/secretKey auth with token 
     client.Debug = true // verbose print each request
 
-    resp0, err := client.SendMessage(`queue0`, `message test 0`, 0)
+    queue := &tcmq.Queue{
+        Client: client,
+        Name:   `queue0`,
+        DelaySeconds: 0,
+        PollingWaitSeconds: 5,
+    }
+    resp0, err := queue.Send(`message test 0`)
     if err != nil {
         fmt.Println("send message:", err)
         return
     }
     fmt.Println("Status:", resp0.StatusCode())
     fmt.Println("Response:", resp0)
-  
-    msg, err := client.ReceiveMessage(`queue0`, 5)
+
+    msg, err := queue.Receive()
     if err != nil {
         fmt.Println("receive message:", err)
         return
     }
     fmt.Println("Response:", msg)
-  
-    resp1, err := client.DeleteMessage(`queue0`, msg.Handle())
+
+    resp1, err := queue.Delete(msg.Handle())
     if err != nil {
         fmt.Println("delete message:", err)
         return
     }
     fmt.Println("Response:", resp1)
-  
-    resp2, err := client.BatchSendMessage(`queue0`, []string{"a", "b", "c"}, 0)
+
+    resp2, err := queue.BatchSend("a", "b", "c")
     if err != nil {
         fmt.Println("batch send message:", err)
         return
     }
     fmt.Println("Response:", resp2)
-  
-    msgs, err := client.BatchReceiveMessage(`queue0`, 5, 10)
+
+    msgs, err := queue.BatchReceive(5)
     if err != nil {
         fmt.Println("batch receive message:", err)
         return
@@ -91,7 +97,7 @@ func main() {
     }
 
     if len(handles) > 0 {
-        res, err := client.BatchDeleteMessage(`queue0`, handles)
+        res, err := queue.BatchDelete(handles...)
         if err != nil {
             fmt.Println("batch delete message:", err)
             return
@@ -99,14 +105,20 @@ func main() {
         fmt.Println("batch delete result:", res)
     }
 
-    resp5, err := client.PublishMessage(`topic0`, `message test 1`, ``, nil)
+    topic := &tcmq.Topic{
+        Client:     client,
+        Name:       `topic0`,
+        RoutingKey: ``,
+        Tags:       nil,
+    }
+    resp5, err := topic.Publish(`message test 1`)
     if err != nil {
         fmt.Println("publish message:", err)
         return
     }
     fmt.Println("Response:", resp5)
 
-    msgS, err := client.BatchPublishMessage(`topic0`, ``, []string{"x","y","z"}, nil)
+    msgS, err := topic.BatchPublish("x", "y", "z")
     if err != nil {
         fmt.Println("publish message:", err)
         return
