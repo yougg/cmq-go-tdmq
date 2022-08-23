@@ -792,13 +792,17 @@ func describe() {
 }
 
 func lists() {
-	switch {
-	case *s.SubscriptionName != ``:
-		filter = `subscribe`
-	case *q.QueueName != ``:
-		filter = `queue`
-	case *t.TopicName != ``:
-		filter = `topic`
+	if filter == `` {
+		switch {
+		case *s.SubscriptionName != ``:
+			filter = `subscribe`
+		case *q.QueueName != ``:
+			filter = `queue`
+		case *t.TopicName != ``:
+			filter = `topic`
+		case region != ``:
+			filter = `region`
+		}
 	}
 	switch filter {
 	case `subscribe`:
