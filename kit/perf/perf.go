@@ -13,6 +13,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	dbg "runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ import (
 	"unsafe"
 
 	"github.com/jamiealquiza/tachymeter"
+	"github.com/pbnjay/memory"
 	tcmq "github.com/yougg/cmq-go-tdmq"
 	"github.com/yougg/pool"
 )
@@ -189,6 +191,9 @@ func main() {
 			log.Println(err)
 		}
 	}()
+
+	mem := memory.TotalMemory() * 6 / 10
+	dbg.SetMemoryLimit(int64(mem))
 
 	for _, c := range cases {
 		if !c.Enabled {
