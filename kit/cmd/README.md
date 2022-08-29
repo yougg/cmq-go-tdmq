@@ -12,20 +12,22 @@ https://github.com/yougg/cmq-go-tdmq/releases
 ### 安装二进制到`$GOPATH/bin`
 
 ```bash
-go install github.com/yougg/cmq-go-tdmq/kit/cmd@main
+git clone https://github.com/yougg/cmq-go-tdmq.git
+cd cmq-go-tdmq/kit/cmd/
+go install .
 ```
 
-### 从源码编译二进制
+### 从源码编译打包二进制
 
 ```bash
 git clone https://github.com/yougg/cmq-go-tdmq.git
 cd cmq-go-tdmq/kit/cmd/
-GOOS=linux go generate tdmqcli.go
-GOOS=darwin go generate tdmqcli.go
-GOOS=windows go generate tdmqcli.go
+GOOS=linux go generate tcmqcli.go
+GOOS=darwin go generate tcmqcli.go
+GOOS=windows go generate tcmqcli.go
 ```
 
-> 编译输出文件: `tdmqcli` 或 `tdmqcli.exe`
+> 编译输出文件: `tcmqcli_*.gz` 或 `tcmqcli_*.zip`
 
 </details>
 

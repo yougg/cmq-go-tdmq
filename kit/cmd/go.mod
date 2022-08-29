@@ -1,4 +1,4 @@
-module github.com/yougg/cmq-go-tdmq/kit/cmd
+module github.com/yougg/cmq-go-tdmq/kit/tcmqcli
 
 go 1.19
 
