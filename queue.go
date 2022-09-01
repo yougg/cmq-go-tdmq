@@ -10,30 +10,53 @@ import (
 type Queue struct {
 	Client             *Client
 	Name               string
-	DelaySeconds       int
-	PollingWaitSeconds int
+	DelaySeconds       int // 消息延迟可见时间, 1 ~ 6048000 秒
+	PollingWaitSeconds int // 消费消息长轮询等待时间, 0 ~ 30 秒
 }
 
+// Send message
+//  input: message string
+//  return: ResponseSM
+//  return: error
 func (q *Queue) Send(message string) (ResponseSM, error) {
 	return q.Client.SendMessage(q.Name, message, q.DelaySeconds)
 }
 
+// BatchSend message(s)
+//  input: messages ...string
+//  return: ResponseSMs
+//  return: error
 func (q *Queue) BatchSend(messages ...string) (ResponseSMs, error) {
 	return q.Client.BatchSendMessage(q.Name, messages, q.DelaySeconds)
 }
 
+// Receive message
+//  return: ResponseRM
+//  return: error
 func (q *Queue) Receive() (ResponseRM, error) {
 	return q.Client.ReceiveMessage(q.Name, q.PollingWaitSeconds)
 }
 
+// BatchReceive message(s)
+//  input: numOfMsg int
+//  return: *ResponseRMs
+//  return: error
 func (q *Queue) BatchReceive(numOfMsg int) (ResponseRMs, error) {
 	return q.Client.BatchReceiveMessage(q.Name, q.PollingWaitSeconds, numOfMsg)
 }
 
+// Delete message handle
+//  input: handle string
+//  return: ResponseDM
+//  return: error
 func (q *Queue) Delete(handle string) (ResponseDM, error) {
 	return q.Client.DeleteMessage(q.Name, handle)
 }
 
+// BatchDelete message handle(s)
+//  input: handles ...string
+//  return: ResponseDMs
+//  return: error
 func (q *Queue) BatchDelete(handles ...string) (ResponseDMs, error) {
 	return q.Client.BatchDeleteMessage(q.Name, handles)
 }
