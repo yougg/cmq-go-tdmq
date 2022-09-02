@@ -84,9 +84,10 @@ var (
 	timeout   int
 	keepalive bool
 
-	debug   bool
-	showErr bool
-	showTPS int
+	debug    bool
+	showErr  bool
+	showTPS  int
+	succOnly bool
 
 	clients []*tcmq.Client // multiple clients for load balance by consistent hash
 	count   int            // created clients count
@@ -111,6 +112,7 @@ func init() {
 	flag.BoolVar(&showErr, "e", false, "weather show error response (default false)")
 	flag.IntVar(&timeout, "t", 30, "client timeout in seconds")
 	flag.IntVar(&showTPS, "s", 0, "show current TPS every (s) seconds")
+	flag.BoolVar(&succOnly, "succOnly", false, "only calculate cost time of succeed request (default false)")
 	flag.Parse()
 }
 
@@ -242,7 +244,13 @@ func main() {
 		t := tachymeter.New(&tachymeter.Config{Size: l})
 		var successes int
 		for _, s := range c.Statistics {
-			t.AddTime(s.CostTime)
+			if succOnly {
+				if s.Succeed {
+					t.AddTime(s.CostTime)
+				}
+			} else {
+				t.AddTime(s.CostTime)
+			}
 			if s.Succeed {
 				successes++
 			}
