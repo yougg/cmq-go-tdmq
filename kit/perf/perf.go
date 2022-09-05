@@ -296,23 +296,23 @@ func test(c *Case) {
 	}()
 	r, r1, r2 := ring.New(100), ring.New(100), ring.New(100)
 	for i := 0; i < r.Len(); i++ {
-		r.Value, r1.Value, r2.Value = int32(0), int32(0), int32(0)
+		r.Value, r1.Value, r2.Value = uint32(0), uint32(0), uint32(0)
 		r, r1, r2 = r.Next(), r1.Next(), r2.Next()
 	}
 	var sumTPS = func() (sum int) {
 		r.Do(func(i any) {
-			v := int(i.(int32))
+			v := int(i.(uint32))
 			sum += v
 		})
 		return sum
 	}
 	var sumTPS12 = func() (sum1, sum2 int) {
 		r1.Do(func(i any) {
-			v := int(i.(int32))
+			v := int(i.(uint32))
 			sum1 += v
 		})
 		r2.Do(func(i any) {
-			v := int(i.(int32))
+			v := int(i.(uint32))
 			sum2 += v
 		})
 		return sum1, sum2
