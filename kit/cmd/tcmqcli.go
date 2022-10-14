@@ -237,10 +237,10 @@ var (
 		{s.TopicName, ``, `TopicName`, ``, `topic name`},
 		{s.Protocol, ``, `Protocol`, ``, `deliver protocol, [http,queue]`},
 		{s.Endpoint, ``, `Endpoint`, ``, `endpoint of deliver protocol, http url or queue name`},
-		{s.NotifyStrategy, ``, `NotifyStrategy`, `2`, `deliver notify strategy, 1:BACKOFF_RETRY, 2:EXPONENTIAL_DECAY_RETRY`},
+		{s.NotifyStrategy, ``, `NotifyStrategy`, `EXPONENTIAL_DECAY_RETRY`, `deliver notify strategy: BACKOFF_RETRY, EXPONENTIAL_DECAY_RETRY`},
 		{s.FilterTag, ``, `FilterTag`, nil, `message filter tag, max 5 count and each one max 16 chars`},
 		{s.BindingKey, ``, `BindingKey`, nil, `message binding key, max 5 count and each one max 64 chars`},
-		{s.NotifyContentFormat, ``, `NotifyContentFormat`, `2`, `notify content format, 1:JSON, 2:SIMPLIFIED`},
+		{s.NotifyContentFormat, ``, `NotifyContentFormat`, `JSON`, `notify content format: JSON, SIMPLIFIED`},
 	}
 
 	actionCmds = []SubCmd{
