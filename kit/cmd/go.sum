@@ -1,9 +1,9 @@
 github.com/google/go-cmp v0.5.6 h1:BKbKCqvP6I+rmFHt06ZmyQtvB8xAkWdhFyr0ZUNZcxQ=
 github.com/google/go-cmp v0.5.6/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
-github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.498 h1:0OVa3ONUD47gpROisKXl90x9vGH4yt8mtQCoF3vW1fg=
-github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.498/go.mod h1:7sCQWVkxcsR38nffDW057DRGk8mUjK1Ing/EFOK8s8Y=
-github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tdmq v1.0.498 h1:zyGTFRSTUPVtbiTnc/oly6bi11ucgr0PCzESSYzF3BM=
-github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tdmq v1.0.498/go.mod h1:c8C3tygNKoXpymwRr/q5kxjsIYC7rwXOB6ClOkFlKoA=
-github.com/yougg/flaggy v0.0.0-20220916091504-e64624f2dc64 h1:dT2AOGO/o5kFj6wbEcGOYpDga+NcgqMikCw/T5c8Ayw=
-github.com/yougg/flaggy v0.0.0-20220916091504-e64624f2dc64/go.mod h1:dO13u7SYuhk910nayCJ+s1DeAAGC1THCMj1uSFmwtQ8=
+github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.514 h1:CgYPKvnfjxs3dQPcM/nUqIk+ZIZAV6+hBvEpsPP7OSk=
+github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.514/go.mod h1:7sCQWVkxcsR38nffDW057DRGk8mUjK1Ing/EFOK8s8Y=
+github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tdmq v1.0.514 h1:m5x+SDLJsu2F6Y78kK5qB5xPnaTx1L29yC4NP/mJAys=
+github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tdmq v1.0.514/go.mod h1:X1jcrUrL6yVnGVeDtnoXy9A8Tc285CxPl6t63xxCR+0=
+github.com/yougg/flaggy v0.0.0-20220927023241-44a00f282fe3 h1:O0wHnahujvKnJHbmn+3hKnMM0FiyaYA+ae8U/nv5AAg=
+github.com/yougg/flaggy v0.0.0-20220927023241-44a00f282fe3/go.mod h1:dO13u7SYuhk910nayCJ+s1DeAAGC1THCMj1uSFmwtQ8=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=

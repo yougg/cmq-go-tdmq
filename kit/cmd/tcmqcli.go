@@ -140,6 +140,11 @@ var (
 	filter = `queue`
 )
 
+// set VALUE_SEPARATOR=... environment variable for value separator
+// the default slice flag parameters value separator is ','
+// customize the VALUE_SEPARATOR to avoid the slice value be separate by ','
+var valueSeparator string
+
 var (
 	client    *tcmq.Client
 	mgrClient *v20200217.Client
@@ -267,7 +272,10 @@ var (
 )
 
 func init() {
-	flaggy.SetVersion(`v0.1.3`)
+	if separator := os.Getenv(`VALUE_SEPARATOR`); separator != `` {
+		valueSeparator = separator
+	}
+	flaggy.SetVersion(`v0.2.1`)
 	flaggy.SetDescription(`TDMQ-CMQ command line tool`)
 	flagFn := func(subCmd *flaggy.Subcommand, flags []Flag) {
 		for _, f := range flags {
@@ -304,23 +312,24 @@ func init() {
 					f.Value = make([]string, 0)
 				}
 				v = f.Value.([]string)
-				subCmd.StringSlice(&v, f.Name, f.FullName, f.Usage)
+				subCmd.StringSlice(&v, f.Name, f.FullName, f.Usage, valueSeparator)
 			case *[]string:
 				if isNilValue {
 					f.Value = &[]string{}
 				}
 				v = f.Value.(*[]string)
-				subCmd.StringSlice(v, f.Name, f.FullName, f.Usage)
+				subCmd.StringSlice(v, f.Name, f.FullName, f.Usage, valueSeparator)
 			case []*string:
 				if isNilValue {
 					f.Value = make([]*string, 0)
 				}
 				v = f.Value.([]*string)
 				subCmd.Flags = append(subCmd.Flags, &flaggy.Flag{
-					AssignmentVar: &v,
-					ShortName:     f.Name,
-					LongName:      f.FullName,
-					Description:   f.Usage,
+					AssignmentVar:  &v,
+					ShortName:      f.Name,
+					LongName:       f.FullName,
+					Description:    f.Usage,
+					ValueSeparator: valueSeparator,
 				})
 			default:
 				log.Printf("invalid flag type: %#v", f)
