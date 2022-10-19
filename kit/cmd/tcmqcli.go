@@ -111,9 +111,10 @@ var regions = map[string]string{
 }
 
 var (
-	uri string
-	sid string
-	key string
+	uri   string
+	sid   string
+	key   string
+	token string
 
 	action string
 
@@ -368,6 +369,7 @@ func init() {
 	flaggy.Int(&timeout, "", `timeout`, "client timeout in seconds")
 	flaggy.String(&sid, "sid", "secretId", "secret id")
 	flaggy.String(&key, "key", "secretKey", "secret key")
+	flaggy.String(&token, "token", "token", "token for temporary secretId/secretKey")
 
 	// flaggy.DebugMode = true
 	flaggy.Parse()
@@ -390,6 +392,7 @@ func main() {
 			log.Println("new TCMQ client", err)
 			return
 		}
+		client.Token = token
 		client.Debug = debug
 	case `create`, `remove`, `modify`, `describe`, `list`, `c`, `e`, `m`, `i`, `l`:
 		// 管控API文档: https://cloud.tencent.com/document/product/1496/62819
