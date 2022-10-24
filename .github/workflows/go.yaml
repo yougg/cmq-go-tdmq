@@ -21,6 +21,9 @@ jobs:
           - goos: darwin
             goarch: amd64
             goz: .gz
+          - goos: darwin
+            goarch: arm64
+            goz: .gz
           - goos: windows
             goarch: amd64
             goz: .zip
