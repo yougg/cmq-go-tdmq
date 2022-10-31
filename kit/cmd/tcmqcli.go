@@ -118,6 +118,10 @@ var (
 
 	action string
 
+	repeat    = 1
+	interval  int
+	keepalive bool
+
 	msgs   = make([]string, 0, 16)
 	length int
 
@@ -256,19 +260,19 @@ var (
 		{ShortName: `p`, Name: `publish`, Do: publish, Desc: "publish message(s) to topic", Flags: []Flag{tFlag, mFlag, nFlag, lFlag, rFlag, tagFlag}},
 		{ShortName: `q`, Name: `query`, Do: query, Desc: "query topic/queue route for tcp", Flags: []Flag{qFlag, tFlag}},
 		{Name: ` `},
-		{ShortName: `c`, Name: `create`, Desc: "create queue/topic/subscribe", subCmds: []SubCmd{
+		{ShortName: `c`, Name: `create`, Desc: "create queue / topic / subscribe", subCmds: []SubCmd{
 			{ShortName: `q`, Name: `queue`, Do: createQ, Desc: "create queue", Flags: queueFlags},
 			{ShortName: `t`, Name: `topic`, Do: createT, Desc: "create topic", Flags: topicFlags},
 			{ShortName: `s`, Name: `subscribe`, Do: createS, Desc: "create subscribe", Flags: subscribeFlags},
 		}},
-		{ShortName: `e`, Name: `remove`, Do: remove, Desc: "remove queue/topic/subscribe", Flags: []Flag{sFlag, qFlag, tFlag}},
-		{ShortName: `m`, Name: `modify`, Desc: "modify queue/topic/subscribe", subCmds: []SubCmd{
+		{ShortName: `e`, Name: `remove`, Do: remove, Desc: "remove queue / topic / subscribe", Flags: []Flag{sFlag, qFlag, tFlag}},
+		{ShortName: `m`, Name: `modify`, Desc: "modify queue / topic / subscribe", subCmds: []SubCmd{
 			{ShortName: `q`, Name: `queue`, Do: modifyQ, Desc: "modify queue", Flags: queueFlags},
 			{ShortName: `t`, Name: `topic`, Do: modifyT, Desc: "modify topic", Flags: topicFlags},
 			{ShortName: `s`, Name: `subscribe`, Do: modifyS, Desc: "modify subscribe", Flags: subscribeFlags},
 		}},
-		{ShortName: `i`, Name: `describe`, Do: describe, Desc: "describe queue/topic/subscribe", Flags: []Flag{sFlag, qFlag, tFlag, fFlag, limitF, offsetF}},
-		{ShortName: `l`, Name: `list`, Do: lists, Desc: "list queue/topic/subscribe/region", Flags: []Flag{sFlag, qFlag, tFlag, fFlag, limitF, offsetF}},
+		{ShortName: `i`, Name: `describe`, Do: describe, Desc: "describe queue / topic / subscribe", Flags: []Flag{sFlag, qFlag, tFlag, fFlag, limitF, offsetF}},
+		{ShortName: `l`, Name: `list`, Do: lists, Desc: "list queue / topic / subscribe / region", Flags: []Flag{sFlag, qFlag, tFlag, fFlag, limitF, offsetF}},
 	}
 )
 
@@ -361,15 +365,18 @@ func init() {
 		flaggy.Bool(&debug, "d", `debug`, "print debug log (default false)")
 		flaggy.String(&uri, "u", "uri", "request uri for message action")
 		flaggy.String(&network, "net", "network", "access from public or private network")
+		flaggy.Bool(&keepalive, "", `keepalive`, "keepalive for client connection")
 	case `create`, `remove`, `modify`, `describe`, `list`, `c`, `e`, `m`, `i`, `l`:
 		flaggy.String(&endpoint, "e", "endpoint", "special endpoint for manage action (disable region)")
 	}
 
 	flaggy.Bool(&insecure, "k", `insecure`, "whether client skip verifies server's certificate")
-	flaggy.Int(&timeout, "", `timeout`, "client timeout in seconds")
+	flaggy.Int(&timeout, "", `timeout`, "client request timeout in seconds")
+	flaggy.Int(&repeat, "", "repeat", "repeat request times in serial mode (message flow only)")
+	flaggy.Int(&interval, "", "interval", "interval milliseconds between each repeat request")
+	flaggy.String(&token, "", "token", "token for temporary secretId/secretKey")
 	flaggy.String(&sid, "sid", "secretId", "secret id")
 	flaggy.String(&key, "key", "secretKey", "secret key")
-	flaggy.String(&token, "token", "token", "token for temporary secretId/secretKey")
 
 	// flaggy.DebugMode = true
 	flaggy.Parse()
@@ -387,7 +394,7 @@ func main() {
 			}
 		}
 		tcmq.InsecureSkipVerify = insecure
-		client, err = tcmq.NewClient(uri, sid, key, time.Duration(timeout)*time.Second)
+		client, err = tcmq.NewClient(uri, sid, key, time.Duration(timeout)*time.Second, keepalive)
 		if err != nil {
 			log.Println("new TCMQ client", err)
 			return
@@ -401,7 +408,8 @@ func main() {
 		if endpoint != `` {
 			prof.HttpProfile.Endpoint = endpoint
 		}
-		mgrClient, err = v20200217.NewClient(common.NewCredential(sid, key), regions[region], prof)
+		credential := common.NewTokenCredential(sid, key, token)
+		mgrClient, err = v20200217.NewClient(credential, regions[region], prof)
 		if err != nil {
 			log.Println("new TCMQ manager client", err)
 			return
@@ -437,12 +445,22 @@ func main() {
 					chooseCmd[cmd.Name+`.`+c.ShortName] ||
 					chooseCmd[cmd.ShortName+`.`+c.Name] ||
 					chooseCmd[cmd.ShortName+`.`+c.ShortName] {
-					c.Do()
+					for i := 0; i < repeat; i++ {
+						c.Do()
+						if repeat > 0 && interval > 0 {
+							time.Sleep(time.Duration(interval) * time.Millisecond)
+						}
+					}
 					break
 				}
 			}
 		} else {
-			cmd.Do()
+			for i := 0; i < repeat; i++ {
+				cmd.Do()
+				if repeat > 0 && interval > 0 {
+					time.Sleep(time.Duration(interval) * time.Millisecond)
+				}
+			}
 		}
 	}
 }
