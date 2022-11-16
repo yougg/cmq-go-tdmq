@@ -119,6 +119,7 @@ var (
 	action string
 
 	repeat    = 1
+	holdTime  int
 	interval  int
 	keepalive bool
 
@@ -372,7 +373,8 @@ func init() {
 
 	flaggy.Bool(&insecure, "k", `insecure`, "whether client skip verifies server's certificate")
 	flaggy.Int(&timeout, "", `timeout`, "client request timeout in seconds")
-	flaggy.Int(&repeat, "", "repeat", "repeat request times in serial mode (message flow only)")
+	flaggy.Int(&repeat, "", "repeat", "repeat request count in serial mode (message flow only)")
+	flaggy.Int(&holdTime, "", "holdTime", "repeat request util hold seconds timeout (override request count)")
 	flaggy.Int(&interval, "", "interval", "interval milliseconds between each repeat request")
 	flaggy.String(&token, "", "token", "token for temporary secretId/secretKey")
 	flaggy.String(&sid, "sid", "secretId", "secret id")
@@ -445,21 +447,30 @@ func main() {
 					chooseCmd[cmd.Name+`.`+c.ShortName] ||
 					chooseCmd[cmd.ShortName+`.`+c.Name] ||
 					chooseCmd[cmd.ShortName+`.`+c.ShortName] {
-					for i := 0; i < repeat; i++ {
-						c.Do()
-						if repeat > 0 && interval > 0 {
-							time.Sleep(time.Duration(interval) * time.Millisecond)
-						}
-					}
+					repeatDo(c.Do)
 					break
 				}
 			}
 		} else {
-			for i := 0; i < repeat; i++ {
-				cmd.Do()
-				if repeat > 0 && interval > 0 {
-					time.Sleep(time.Duration(interval) * time.Millisecond)
-				}
+			repeatDo(cmd.Do)
+		}
+	}
+}
+
+func repeatDo(do func()) {
+	if holdTime > 0 {
+		now := time.Now()
+		for time.Since(now) <= time.Duration(holdTime)*time.Second {
+			do()
+			if interval > 0 {
+				time.Sleep(time.Duration(interval) * time.Millisecond)
+			}
+		}
+	} else {
+		for i := 0; i < repeat; i++ {
+			do()
+			if interval > 0 {
+				time.Sleep(time.Duration(interval) * time.Millisecond)
 			}
 		}
 	}
