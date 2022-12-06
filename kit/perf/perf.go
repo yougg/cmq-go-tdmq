@@ -84,6 +84,7 @@ var (
 	timeout   int
 	keepalive bool
 
+	insecure bool
 	debug    bool
 	showErr  bool
 	showTPS  int
@@ -108,6 +109,7 @@ func init() {
 	flag.StringVar(&key, "k", "", "secret key")
 	flag.StringVar(&kase, "c", "cases.json", "test case file")
 	flag.BoolVar(&keepalive, "keepalive", false, "keepalive connections from client server (default false)")
+	flag.BoolVar(&insecure, "insecure", false, "whether client skip verifies server's certificate (default false)")
 	flag.BoolVar(&debug, "d", false, "weather show client debug info (default false)")
 	flag.BoolVar(&showErr, "e", false, "weather show error response (default false)")
 	flag.IntVar(&timeout, "t", 30, "client timeout in seconds")
@@ -155,6 +157,7 @@ func main() {
 
 	// client load balance (multiple servers)
 	for _, u := range uris {
+		tcmq.InsecureSkipVerify = insecure
 		client, err := tcmq.NewClient(u, sid, key, time.Duration(timeout)*time.Second, keepalive)
 		if err != nil {
 			log.Println("new TDMQ-CMQ client", err)
@@ -569,9 +572,10 @@ func test(c *Case) {
 }
 
 // hash consistent hash and mod to get client index
-//  input: data string
-//  input: length int
-//  return: int
+//
+//	input: data string
+//	input: length int
+//	return: int
 func hash(data string, length int) int {
 	return int(crc32.ChecksumIEEE([]byte(data))) % length
 }
