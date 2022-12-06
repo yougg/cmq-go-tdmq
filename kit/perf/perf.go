@@ -378,6 +378,12 @@ func test(c *Case) {
 	for range ch {
 		wg.Add(c.ResourceCount)
 		for j := 0; j < c.ResourceCount; j++ {
+			if c.MaximumTPS > 0 {
+				// 如果当前TPS超过了设定限制的最大TPS则等待直到TPS下降再继续
+				for sumTPS() > c.MaximumTPS {
+					time.Sleep(time.Millisecond)
+				}
+			}
 			job := func(cc *Case) pool.Task {
 				return func(args ...any) {
 					var succeed bool
@@ -391,12 +397,6 @@ func test(c *Case) {
 						}
 						wg.Done()
 					}()
-					if cc.MaximumTPS > 0 {
-						// 如果当前TPS超过了设定限制的最大TPS则等待直到TPS下降再继续
-						for sumTPS() > cc.MaximumTPS {
-							time.Sleep(time.Millisecond)
-						}
-					}
 					name := cc.ResourceName
 					if cc.ResourceCount > 1 {
 						n := args[0].(int)
