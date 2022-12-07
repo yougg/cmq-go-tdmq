@@ -385,6 +385,7 @@ func test(c *Case) {
 				return func(args ...any) {
 					if cc.MaximumTPS > 0 && cc.RepeatTimeout > 0 && sumTPS() > cc.MaximumTPS {
 						// 按计时压测时超过TPS限制的任务直接丢弃
+						wg.Done()
 						return
 					}
 					var succeed bool
