@@ -13,12 +13,14 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
 	dbg "runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 	"unsafe"
 
@@ -358,6 +360,15 @@ func test(c *Case) {
 		}
 	}()
 	ch := make(chan struct{}, 1)
+	cancel := &atomic.Bool{}
+	go func() {
+		sigTerm := make(chan os.Signal)
+		signal.Notify(sigTerm, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
+		for range sigTerm {
+			log.Println("Cancel benchmark, waiting for statistics...")
+			cancel.Store(true)
+		}
+	}()
 	go func() {
 		if c.RepeatTimeout > 0 {
 			after := time.After(time.Duration(c.RepeatTimeout) * time.Second)
@@ -376,11 +387,21 @@ func test(c *Case) {
 					ticker.Stop()
 					return
 				case <-ticker.C:
+					if cancel.Load() {
+						close(ch)
+						ticker.Stop()
+						return
+					}
 					ch <- struct{}{}
 				}
 			}
 		} else {
 			for i := 0; i < c.RepeatTimes; i++ {
+				if cancel.Load() {
+					close(ch)
+					ticker.Stop()
+					return
+				}
 				ch <- struct{}{}
 			}
 			close(ch)
