@@ -291,14 +291,6 @@ func test(c *Case) {
 	if showTPS > 0 {
 		tpsShower = time.NewTicker(time.Duration(showTPS) * time.Second)
 	}
-	defer func() {
-		// 等待2秒 便于TPS统计完成
-		time.Sleep(2 * time.Second)
-		ticker.Stop()
-		if showTPS > 0 && tpsShower != nil {
-			tpsShower.Stop()
-		}
-	}()
 	r, r1, r2 := ring.New(100), ring.New(100), ring.New(100)
 	for i := 0; i < r.Len(); i++ {
 		r.Value, r1.Value, r2.Value = uint32(0), uint32(0), uint32(0)
@@ -332,6 +324,7 @@ func test(c *Case) {
 			c.TPSes = append(c.TPSes, sumTPS())
 		}
 	}()
+	statisticsOver := make(chan struct{})
 	go func() {
 		if showTPS > 0 && tpsShower != nil {
 			for range tpsShower.C {
@@ -339,6 +332,12 @@ func test(c *Case) {
 				total := sum1 + sum2
 				rate := (float64(sum1) / float64(total)) * 100
 				log.Printf("TPS: %-5d  Succeed: %-5d  Failed: %-5d  Rate: %.2f%%\n", total, sum1, sum2, rate)
+				select {
+				case <-statisticsOver:
+					tpsShower.Stop()
+					return
+				default:
+				}
 			}
 		}
 	}()
@@ -358,6 +357,7 @@ func test(c *Case) {
 		for s := range c.StatsChan {
 			c.Statistics = append(c.Statistics, s)
 		}
+		close(statisticsOver)
 	}()
 	ch := make(chan struct{}, 1)
 	cancel := &atomic.Bool{}
@@ -399,7 +399,6 @@ func test(c *Case) {
 			for i := 0; i < c.RepeatTimes; i++ {
 				if cancel.Load() {
 					close(ch)
-					ticker.Stop()
 					return
 				}
 				ch <- struct{}{}
