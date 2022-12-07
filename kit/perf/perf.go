@@ -361,12 +361,21 @@ func test(c *Case) {
 	go func() {
 		if c.RepeatTimeout > 0 {
 			after := time.After(time.Duration(c.RepeatTimeout) * time.Second)
+			var ticker = time.NewTicker(1)
+			if c.MaximumTPS > 0 {
+				period := time.Second / time.Duration(c.MaximumTPS)
+				if c.ResourceCount > 0 {
+					period = period * time.Duration(c.ResourceCount)
+				}
+				ticker = time.NewTicker(period)
+			}
 			for {
 				select {
 				case <-after:
 					close(ch)
+					ticker.Stop()
 					return
-				default:
+				case <-ticker.C:
 					ch <- struct{}{}
 				}
 			}
@@ -383,11 +392,6 @@ func test(c *Case) {
 		for j := 0; j < c.ResourceCount; j++ {
 			job := func(cc *Case) pool.Task {
 				return func(args ...any) {
-					if cc.MaximumTPS > 0 && cc.RepeatTimeout > 0 && sumTPS() > cc.MaximumTPS {
-						// 按计时压测时超过TPS限制的任务直接丢弃
-						wg.Done()
-						return
-					}
 					var succeed bool
 					defer func() {
 						// 当前事务完成后增加TPS
