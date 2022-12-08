@@ -553,21 +553,21 @@ func test(c *Case) {
 					if err != nil {
 						succeed = false
 						if showErr {
-							log.Println(client.Url, err)
+							log.Println(client.Url, cc.Action, name, err)
 						}
 					} else {
 						switch {
 						case resp == nil || (*(*[2]uintptr)(unsafe.Pointer(&resp)))[1] == 0:
 							succeed = false
 							if showErr {
-								log.Println(client.Url, resp, err)
+								log.Println(client.Url, cc.Action, name, resp, err)
 							}
 						case resp.Code() == 0:
 							succeed = true
 						default:
 							succeed = false
 							if showErr {
-								log.Println(client.Url, resp)
+								log.Println(client.Url, cc.Action, name, resp)
 							}
 						}
 					}
