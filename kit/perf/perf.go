@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"container/ring"
 	"encoding/json"
 	"errors"
@@ -98,6 +99,7 @@ var (
 	kase  string
 	cases []*Case
 
+	msg     string
 	randMsg string
 
 	tps, tps1, tps2 = &atomic.Uint32{}, &atomic.Uint32{}, &atomic.Uint32{}
@@ -117,6 +119,7 @@ func init() {
 	flag.IntVar(&timeout, "t", 30, "client timeout in seconds")
 	flag.IntVar(&showTPS, "s", 0, "show current TPS every (s) seconds")
 	flag.BoolVar(&succOnly, "succOnly", false, "only calculate cost time of succeed request (default false)")
+	flag.StringVar(&msg, "m", "9876543210", "message content: random / (repeated string)")
 	flag.Parse()
 }
 
@@ -141,12 +144,17 @@ func init() {
 		return
 	}
 
-	// generate random 2MB length string
-	// all visible ascii characters
-	// !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
-	m := make([]byte, randMsgSize)
-	for i := 0; i < randMsgSize; i++ {
-		m[i] = byte('!' + rand.Intn('~'-'!'))
+	var m []byte
+	if msg == `` || msg == `rand` || msg == `random` {
+		// generate random 2MB length string
+		// all visible ascii characters
+		// !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+		m = make([]byte, randMsgSize)
+		for i := 0; i < randMsgSize; i++ {
+			m[i] = byte('!' + rand.Intn('~'-'!'))
+		}
+	} else {
+		m = bytes.Repeat([]byte(msg), randMsgSize/len(msg))
 	}
 	randMsg = string(m)
 }
