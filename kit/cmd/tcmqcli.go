@@ -138,6 +138,7 @@ var (
 	debug    bool
 
 	network  = `public`
+	method   = `POST`
 	region   string
 	endpoint string
 
@@ -360,6 +361,7 @@ func init() {
 	if len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], `-`) {
 		action = os.Args[1]
 	}
+	flaggy.String(&method, "X", "method", "http request method: GET/POST")
 	flaggy.String(&region, "r", "region", "public cloud region, ex: gz/sh/bj/usw/jp/de...")
 	switch action {
 	case `query`, `send`, `receive`, `delete`, `publish`, `q`, `s`, `r`, `d`, `p`:
@@ -401,6 +403,7 @@ func main() {
 			log.Println("new TCMQ client", err)
 			return
 		}
+		client.Method = method
 		client.Token = token
 		client.Debug = debug
 	case `create`, `remove`, `modify`, `describe`, `list`, `c`, `e`, `m`, `i`, `l`:
