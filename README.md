@@ -38,59 +38,59 @@ import (
 
 func main() {
     // get your own secretId/secretKey: https://console.cloud.tencent.com/cam/capi
-    client, err := tcmq.NewClient("https://cmq-gz.public.tencenttdmq.com","AKIDxxxxx","xxxxx",5*time.Second)
+    client, err := tcmq.NewClient("https://cmq-gz.public.tencenttdmq.com", "AKIDxxxxx", "xxxxx", 5*time.Second)
     if err != nil {
         fmt.Println("new TDMQ-CMQ client", err)
         return
     }
     // client.AppId = 12345  // for privatization request without authentication
     // client.Method = `GET` // default: POST
-    // client.Token = `your_token` // for temporary secretId/secretKey auth with token 
+    // client.Token = `your_token` // for temporary secretId/secretKey auth with token
     client.Debug = true // verbose print each request
 
     queue := &tcmq.Queue{
-        Client: client,
-        Name:   `queue0`,
-        DelaySeconds: 0,
+        Client:             client,
+        Name:               `queue0`,
+        DelaySeconds:       0,
         PollingWaitSeconds: 5,
     }
-    resp0, err := queue.Send(`message test 0`)
+    resp1, err := queue.Send(`message test 0`)
     if err != nil {
         fmt.Println("send message:", err)
         return
     }
-    fmt.Println("Status:", resp0.StatusCode())
-    fmt.Println("Response:", resp0)
+    fmt.Println("Status:", resp1.StatusCode())
+    fmt.Println("Response:", resp1)
 
-    msg, err := queue.Receive()
+    respMsg, err := queue.Receive()
     if err != nil {
         fmt.Println("receive message:", err)
         return
     }
-    fmt.Println("Response:", msg)
+    fmt.Println("Response:", respMsg)
 
-    resp1, err := queue.Delete(msg.Handle())
+    resp2, err := queue.Delete(respMsg.Handle())
     if err != nil {
         fmt.Println("delete message:", err)
         return
     }
-    fmt.Println("Response:", resp1)
+    fmt.Println("Response:", resp2)
 
-    resp2, err := queue.BatchSend("a", "b", "c")
+    resp3, err := queue.BatchSend("a", "b", "c")
     if err != nil {
         fmt.Println("batch send message:", err)
         return
     }
-    fmt.Println("Response:", resp2)
+    fmt.Println("Response:", resp3)
 
-    msgs, err := queue.BatchReceive(5)
+    resp4, err := queue.BatchReceive(5)
     if err != nil {
         fmt.Println("batch receive message:", err)
         return
     }
-    fmt.Println("Response:", msgs)
+    fmt.Println("Response:", resp4)
     var handles []string
-    for _, msg := range msgs.MsgInfos() {
+    for _, msg := range resp4.MsgInfos() {
         if len(msg.Handle()) > 0 {
             handles = append(handles, msg.Handle())
         }
@@ -118,11 +118,11 @@ func main() {
     }
     fmt.Println("Response:", resp5)
 
-    msgS, err := topic.BatchPublish("x", "y", "z")
+    resp6, err := topic.BatchPublish("x", "y", "z")
     if err != nil {
         fmt.Println("publish message:", err)
         return
     }
-    fmt.Println("Response:", msgS)
+    fmt.Println("Response:", resp6)
 }
 ```
