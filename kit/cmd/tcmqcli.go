@@ -274,7 +274,7 @@ var (
 			{ShortName: `s`, Name: `subscribe`, Do: modifyS, Desc: "modify subscribe", Flags: subscribeFlags},
 		}},
 		{ShortName: `i`, Name: `describe`, Do: describe, Desc: "describe queue / topic / subscribe", Flags: []Flag{sFlag, qFlag, tFlag, fFlag, limitF, offsetF}},
-		{ShortName: `l`, Name: `list`, Do: lists, Desc: "list queue / topic / subscribe / region", Flags: []Flag{sFlag, qFlag, tFlag, fFlag, limitF, offsetF}},
+		{ShortName: `l`, Name: `list`, Do: lists, Desc: "list -f  <queue | topic | subscribe | region>", Flags: []Flag{sFlag, qFlag, tFlag, fFlag, limitF, offsetF}},
 	}
 )
 
@@ -373,7 +373,7 @@ func init() {
 		flaggy.String(&endpoint, "e", "endpoint", "special endpoint for manage action (disable region)")
 	}
 
-	flaggy.Bool(&insecure, "k", `insecure`, "whether client skip verifies server's certificate")
+	flaggy.Bool(&insecure, "k", `insecure`, "skip verifies servers certificate")
 	flaggy.Int(&timeout, "", `timeout`, "client request timeout in seconds")
 	flaggy.Int(&repeat, "", "repeat", "repeat request count in serial mode (message flow only)")
 	flaggy.Int(&holdTime, "", "holdTime", "repeat request util hold seconds timeout (override request count)")
@@ -538,13 +538,15 @@ func send() {
 	}
 	var resp tcmq.Result
 	var err error
+	var s string
 	if len(msgs) == 1 {
 		resp, err = queue.Send(msgs[0])
 	} else {
 		resp, err = queue.BatchSend(msgs...)
+		s = "s"
 	}
 	if err != nil {
-		log.Println("batch send message:", err)
+		log.Println("send message"+s+":", err)
 		return
 	}
 	if !debug {
@@ -560,13 +562,15 @@ func receive() {
 	}
 	var resp tcmq.Result
 	var err error
+	var s string
 	if number == 1 {
 		resp, err = queue.Receive()
 	} else {
 		resp, err = queue.BatchReceive(number)
+		s = "s"
 	}
 	if err != nil {
-		log.Println("batch receive message:", err)
+		log.Println("receive message"+s+":", err)
 		return
 	}
 	if !debug {
@@ -594,9 +598,10 @@ func receive() {
 		resp, err = queue.Delete(handles[0])
 	default:
 		resp, err = queue.BatchDelete(handles...)
+		s = "s"
 	}
 	if err != nil {
-		log.Println("delete message:", err)
+		log.Println("delete message"+s+":", err)
 		return
 	}
 	if !debug {
@@ -611,13 +616,15 @@ func acknowledge() {
 	}
 	var resp tcmq.Result
 	var err error
+	var s string
 	if len(handles) == 1 {
 		resp, err = queue.Delete(handles[0])
 	} else {
 		resp, err = queue.BatchDelete(handles...)
+		s = "s"
 	}
 	if err != nil {
-		log.Println("delete message(s):", err)
+		log.Println("delete message"+s+":", err)
 		return
 	}
 	if !debug {
@@ -659,13 +666,15 @@ func publish() {
 	}
 	var resp tcmq.Result
 	var err error
+	var s string
 	if len(msgs) == 1 {
 		resp, err = topic.Publish(msgs[0])
 	} else {
 		resp, err = topic.BatchPublish(msgs...)
+		s = "s"
 	}
 	if err != nil {
-		log.Println("publish message(s):", err)
+		log.Println("publish message"+s+":", err)
 		return
 	}
 	if !debug {
