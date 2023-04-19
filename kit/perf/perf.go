@@ -155,6 +155,9 @@ func init() {
 		}
 	} else {
 		m = bytes.Repeat([]byte(msg), randMsgSize/len(msg))
+		if x := randMsgSize - len(m); x > 0 {
+			m = append(m, bytes.Repeat([]byte{'x'}, x)...)
+		}
 	}
 	randMsg = string(m)
 }
